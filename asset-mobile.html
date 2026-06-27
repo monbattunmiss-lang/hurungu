@@ -229,7 +229,7 @@ html,body{height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSys
       <div id="topbar-title" style="font-size:17px;font-weight:600"></div>
       <div id="topbar-sub" style="font-size:12px;opacity:.8;margin-top:2px"></div>
     </div>
-    <button onclick="logout()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer">Гарах</button>
+    <div style="text-align:right"><div id="syncBadge" style="font-size:10px;opacity:.8;margin-bottom:4px">⏳ Холбогдож байна...</div><button onclick="logout()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer">Гарах</button></div>
   </div>
 
   <div id="content">
@@ -759,8 +759,93 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),2500);
 }
 
+
+// ── FIREBASE SYNC ──
+const FB_CONFIG={
+  apiKey:"AIzaSyABC-hX0D9977V6Mrt5rkTxx3dueKKDAFs",
+  authDomain:"monbatt-702e7.firebaseapp.com",
+  databaseURL:"https://monbatt-702e7-default-rtdb.firebaseio.com",
+  projectId:"monbatt-702e7",
+  storageBucket:"monbatt-702e7.firebasestorage.app",
+  messagingSenderId:"395816629714",
+  appId:"1:395816629714:web:d5b56b18f2078faa39c40b"
+};
+let fbDB=null;
+
+function initFirebase(){
+  const s1=document.createElement('script');
+  s1.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+  s1.onload=()=>{
+    const s2=document.createElement('script');
+    s2.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
+    s2.onload=()=>{
+      firebase.initializeApp(FB_CONFIG);
+      fbDB=firebase.database();
+      setSyncStatus('🟢 Cloud холбогдсон');
+      pullFromCloud();
+      listenCloud();
+    };
+    document.head.appendChild(s2);
+  };
+  s1.onerror=()=>setSyncStatus('🔴 Офлайн горим');
+  document.head.appendChild(s1);
+}
+
+function setSyncStatus(msg){
+  const el=document.getElementById('syncBadge');
+  if(el)el.textContent=msg;
+}
+
+function pullFromCloud(){
+  if(!fbDB)return;
+  fbDB.ref('assets').once('value').then(snap=>{
+    const d=snap.val();
+    if(d){save(KEYS.A,Object.values(d));renderHome();if(curTab==='assets')renderAssets();}
+  });
+  fbDB.ref('transactions').once('value').then(snap=>{
+    const d=snap.val();
+    if(d){const arr=Object.values(d).sort((a,b)=>b.createdAt-a.createdAt);save(KEYS.T,arr);renderHome();}
+  });
+  fbDB.ref('users').once('value').then(snap=>{
+    const d=snap.val();
+    if(d){save(KEYS.U,Object.values(d));if(document.getElementById('loginScreen').style.display!=='none')initLogin();}
+  });
+}
+
+function listenCloud(){
+  if(!fbDB)return;
+  fbDB.ref('assets').on('value',snap=>{
+    const d=snap.val();
+    if(d){save(KEYS.A,Object.values(d));renderHome();if(curTab==='assets')renderAssets();}
+  });
+  fbDB.ref('transactions').on('value',snap=>{
+    const d=snap.val();
+    if(d){const arr=Object.values(d).sort((a,b)=>b.createdAt-a.createdAt);save(KEYS.T,arr);renderHome();}
+  });
+  fbDB.ref('users').on('value',snap=>{
+    const d=snap.val();
+    if(d){save(KEYS.U,Object.values(d));}
+  });
+}
+
+function pushToCloud(ref,arr){
+  if(!fbDB)return;
+  const obj={};arr.forEach(i=>{obj[i.id]=i;});
+  fbDB.ref(ref).set(obj).catch(e=>console.log(e));
+}
+
+// Override addTx to also push to Firebase
+const _origAddTx=addTx;
+window.addTx=function(tx){
+  _origAddTx(tx);
+  const txs=get(KEYS.T);
+  pushToCloud('transactions',txs);
+  pushToCloud('assets',get(KEYS.A));
+};
+
 // ── INIT ──
 initDB();
+initFirebase();
 const u=currentUser();
 if(u&&u.role==='naraa'){startApp();}
 else{initLogin();}
