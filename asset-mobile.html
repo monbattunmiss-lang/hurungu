@@ -283,7 +283,13 @@ html,body{height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSys
           <input class="search-input" id="assetSearch" placeholder="Нэр, QR код хайх..." oninput="renderAssets()">
         </div>
       </div>
-      <div class="filter-row">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:0 16px 8px">
+  <span style="font-size:13px;color:var(--muted)" id="assetCountLabel"></span>
+  <button onclick="openNewAsset()" style="background:var(--blue);color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Нэмэх
+  </button>
+</div>
+<div class="filter-row">
         <div class="filter-chip active" id="fAll" onclick="setFilter('')">Бүгд</div>
         <div class="filter-chip" id="fCirc" onclick="setFilter('Эргэлтийн')">Эргэлтийн</div>
         <div class="filter-chip" id="fFixed" onclick="setFilter('Үндсэн')">Үндсэн</div>
@@ -367,6 +373,105 @@ html,body{height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSys
   </div>
 </div>
 
+
+<!-- NEW ASSET MODAL -->
+<div id="newAssetModal" style="position:fixed;inset:0;z-index:300;display:none;flex-direction:column;justify-content:flex-end">
+  <div onclick="closeNewAsset()" style="position:absolute;inset:0;background:rgba(0,0,0,.5)"></div>
+  <div style="background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-height:92vh;overflow-y:auto;position:relative;z-index:1;padding:20px 16px calc(24px + var(--safe-bot))">
+    <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px"></div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:16px">➕ Шинэ хөрөнгө бүртгэх</div>
+
+    <!-- Зураг -->
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px">Зураг (заавал биш)</label>
+      <div id="imgPreview" style="width:100%;height:160px;background:var(--bg);border-radius:12px;border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden" onclick="document.getElementById('imgInput').click()">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--hint)" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span style="font-size:13px;color:var(--hint);margin-top:8px">Камераар авах / Галерейгаас сонгох</span>
+      </div>
+      <input type="file" id="imgInput" accept="image/*" capture="environment" style="display:none" onchange="previewImg(this)">
+    </div>
+
+    <!-- Нэр -->
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Нэр *</label>
+      <input id="na-name" type="text" placeholder="Хөрөнгийн нэр оруулна уу" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:15px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+    </div>
+
+    <!-- Төрөл -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Төрөл *</label>
+        <select id="na-type" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+          <option value="Эргэлтийн">Эргэлтийн</option>
+          <option value="Үндсэн">Үндсэн</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Нэгж</label>
+        <input id="na-unit" type="text" placeholder="ширхэг, кг..." style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+      </div>
+    </div>
+
+    <!-- Тоо хэмжээ, Үнэ -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Тоо хэмжээ *</label>
+        <input id="na-qty" type="number" value="1" min="0" inputmode="numeric" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:15px;background:var(--bg);color:var(--text);outline:none;font-family:inherit;font-weight:700">
+      </div>
+      <div>
+        <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Үнэ (₮)</label>
+        <input id="na-price" type="number" value="0" min="0" inputmode="numeric" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:15px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+      </div>
+    </div>
+
+    <!-- Ангилал -->
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Ангилал (Харьяа алба)</label>
+      <select id="na-cat" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+        <option value="">— Сонгох —</option>
+        <option>Хүний нөөц</option>
+        <option>Ажиллагаа удирдлагын тасаг</option>
+        <option>Тагнуулын тасаг</option>
+        <option>Сургалтын тасаг</option>
+        <option>1-р рот</option>
+        <option>2-р рот</option>
+        <option>3-р рот</option>
+        <option>4-р рот</option>
+        <option>Байлдааны хангалтын рот</option>
+        <option>Хангалт үйлчилгээний рот</option>
+        <option>Санхүүгийн тасаг</option>
+        <option>Эмнэлгийн тасаг</option>
+        <option>Холбооны салаа</option>
+      </select>
+    </div>
+
+    <!-- Дансны дугаар -->
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Дансны дугаар</label>
+      <input id="na-accountno" type="text" placeholder="39... = Үндсэн, бусад = Эргэлтийн" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+    </div>
+
+    <!-- Статус -->
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Статус</label>
+      <select id="na-status" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+        <option value="Сайн">Сайн</option>
+        <option value="Дутуу">Дутуу</option>
+        <option value="Засварт">Засварт</option>
+      </select>
+    </div>
+
+    <!-- Тэмдэглэл -->
+    <div style="margin-bottom:20px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Тэмдэглэл</label>
+      <textarea id="na-note" placeholder="Нэмэлт мэдээлэл..." style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;font-family:inherit;resize:none;height:80px"></textarea>
+    </div>
+
+    <button onclick="saveNewAsset()" style="width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer">✅ Бүртгэх</button>
+    <button onclick="closeNewAsset()" style="width:100%;background:transparent;border:none;color:var(--muted);padding:12px;font-size:14px;cursor:pointer;margin-top:6px">Цуцлах</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -431,7 +536,11 @@ function addTx(tx){
     save(KEYS.A,assets);
   }
 }
-function getImgUrl(qr){
+function getImgUrl(qr,assetId){
+  // First check local images
+  if(assetId){
+    try{const m=JSON.parse(localStorage.getItem('ams_img_local')||'{}');if(m[assetId])return m[assetId];}catch{}
+  }
   try{const m=JSON.parse(ls('ams_img_map')||'{}');const id=m[qr.replace('QR-','')];return id?`https://drive.google.com/thumbnail?id=${id}&sz=w400`:null;}catch{return null;}
 }
 function currentUser(){try{return JSON.parse(ls(KEYS.S));}catch{return null;}}
@@ -555,6 +664,8 @@ function renderAssets(){
   if(q)f.q=q;
   const assets=getAssets(f);
   const whs=getWH();
+  const countEl=document.getElementById('assetCountLabel');
+  if(countEl)countEl.textContent='Нийт '+assets.length+' хөрөнгө';
   const el=document.getElementById('assetList');
   if(!assets.length){
     el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/></svg><p>Хөрөнгө олдсонгүй</p></div>`;
@@ -586,7 +697,7 @@ function showDetail(id){
   const wh=whs.find(w=>w.id===a.warehouseId);
   const bc={Сайн:'b-ok',Дутуу:'b-warn',Засварт:'b-danger'}[a.status]||'b-ok';
   const tc=a.type==='Эргэлтийн'?'b-info':'b-ok';
-  const imgUrl=getImgUrl(a.qr);
+  const imgUrl=getImgUrl(a.qr,a.id);
   const txs=getTx({assetId:a.id}).slice(0,5);
   const icons={income:'📥',expense:'📤',check:'✅'};
 
@@ -759,6 +870,90 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),2500);
 }
 
+
+
+// ── NEW ASSET ──
+let naImg=null;
+function openNewAsset(){
+  naImg=null;
+  document.getElementById('na-name').value='';
+  document.getElementById('na-type').value='Эргэлтийн';
+  document.getElementById('na-unit').value='';
+  document.getElementById('na-qty').value='1';
+  document.getElementById('na-price').value='0';
+  document.getElementById('na-cat').value='';
+  document.getElementById('na-accountno').value='';
+  document.getElementById('na-status').value='Сайн';
+  document.getElementById('na-note').value='';
+  document.getElementById('imgInput').value='';
+  document.getElementById('imgPreview').innerHTML=`
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--hint)" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    <span style="font-size:13px;color:var(--hint);margin-top:8px">Камераар авах / Галерейгаас сонгох</span>`;
+  const m=document.getElementById('newAssetModal');
+  m.style.display='flex';
+}
+function closeNewAsset(){
+  document.getElementById('newAssetModal').style.display='none';
+}
+function previewImg(input){
+  if(!input.files||!input.files[0])return;
+  const file=input.files[0];
+  const reader=new FileReader();
+  reader.onload=e=>{
+    naImg=e.target.result;
+    document.getElementById('imgPreview').innerHTML=`<img src="${naImg}" style="width:100%;height:100%;object-fit:cover">`;
+  };
+  reader.readAsDataURL(file);
+}
+function saveNewAsset(){
+  const name=document.getElementById('na-name').value.trim();
+  if(!name){showToast('Нэр оруулна уу');return;}
+  const u=currentUser();
+  const assets=get(KEYS.A);
+  const accountNo=document.getElementById('na-accountno').value.trim();
+  const autoType=accountNo.startsWith('39')?'Үндсэн':accountNo?'Эргэлтийн':document.getElementById('na-type').value;
+  const newId='a'+Date.now();
+  const qrNum=String(assets.length+1).padStart(8,'0');
+  const qr='QR-'+qrNum;
+  const asset={
+    id:newId,
+    qr:qr,
+    name:name,
+    type:autoType,
+    category:document.getElementById('na-cat').value||'—',
+    unit:document.getElementById('na-unit').value||'ширхэг',
+    qty:parseInt(document.getElementById('na-qty').value)||1,
+    price:parseInt(document.getElementById('na-price').value)||0,
+    warehouseId:u.warehouseId||null,
+    naraaType:u.naraaType||'',
+    naraaName:u.name||'',
+    userId:u.id,
+    status:document.getElementById('na-status').value||'Сайн',
+    accountNo:accountNo,
+    note:document.getElementById('na-note').value.trim(),
+    createdAt:Date.now(),
+    lastChecked:Date.now()
+  };
+  assets.push(asset);
+  save(KEYS.A,assets);
+
+  // Зураг хадгалах (localStorage-д base64 байдлаар)
+  if(naImg){
+    try{
+      const imgMap=JSON.parse(localStorage.getItem('ams_img_local')||'{}');
+      imgMap[newId]=naImg;
+      localStorage.setItem('ams_img_local',JSON.stringify(imgMap));
+    }catch(e){}
+  }
+
+  // Firebase-д push хийх
+  if(typeof pushToCloud==='function')pushToCloud('assets',assets);
+
+  closeNewAsset();
+  showToast('✅ '+name+' бүртгэгдлээ! QR: '+qr);
+  renderHome();
+  renderAssets();
+}
 
 // ── FIREBASE SYNC ──
 const FB_CONFIG={
