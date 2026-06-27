@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Нярав">
+<meta name="theme-color" content="#1565C0">
+<title>Нярав — Хөрөнгийн систем</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --blue:#1565C0;--blue2:#1976D2;--blue-l:#E3F2FD;
+  --green:#2E7D32;--green-l:#E8F5E9;
+  --red:#C62828;--red-l:#FFEBEE;
+  --orange:#E65100;--orange-l:#FFF3E0;
+  --gray:#546E7A;--gray-l:#ECEFF1;
+  --text:#1A1A2E;--muted:#607D8B;--hint:#90A4AE;
+  --bg:#F4F6F9;--surface:#FFFFFF;--border:#E0E7EF;
+  --radius:14px;--safe-top:env(safe-area-inset-top);--safe-bot:env(safe-area-inset-bottom);
+}
+html,body{height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);overflow:hidden}
+
+/* ── APP SHELL ── */
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+#topbar{background:var(--blue);color:#fff;padding:calc(12px + var(--safe-top)) 16px 12px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#topbar h1{font-size:17px;font-weight:600}
+#topbar-sub{font-size:12px;opacity:.8;margin-top:2px}
+#content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#navbar{display:flex;background:var(--surface);border-top:1px solid var(--border);padding-bottom:var(--safe-bot);flex-shrink:0}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px 6px;border:none;background:none;cursor:pointer;color:var(--hint);font-size:10px;gap:3px;transition:color .15s}
+.nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-btn.active{color:var(--blue)}
+
+/* ── LOGIN ── */
+#loginScreen{position:fixed;inset:0;z-index:999;background:var(--blue);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.login-logo{width:72px;height:72px;background:rgba(255,255,255,.15);border-radius:20px;display:flex;align-items:center;justify-content:center;margin-bottom:20px}
+.login-logo svg{width:40px;height:40px;stroke:#fff;fill:none;stroke-width:1.5}
+.login-title{color:#fff;font-size:22px;font-weight:700;margin-bottom:6px}
+.login-sub{color:rgba(255,255,255,.7);font-size:13px;margin-bottom:32px;text-align:center}
+.login-card{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:340px}
+.login-label{font-size:13px;color:var(--muted);margin-bottom:8px;font-weight:500}
+.user-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.user-chip{border:1.5px solid var(--border);border-radius:12px;padding:10px 8px;text-align:center;cursor:pointer;transition:all .15s;background:#fff}
+.user-chip.sel{border-color:var(--blue);background:var(--blue-l)}
+.user-chip-name{font-size:13px;font-weight:600;color:var(--text)}
+.user-chip-role{font-size:11px;color:var(--muted);margin-top:2px}
+.pin-label{font-size:13px;color:var(--muted);margin-bottom:8px;font-weight:500}
+.pin-display{height:52px;border:1.5px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;background:var(--bg)}
+.pin-dot{width:12px;height:12px;border-radius:50%;background:var(--border);transition:background .15s}
+.pin-dot.filled{background:var(--blue)}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pin-key{height:52px;border:1.5px solid var(--border);border-radius:12px;font-size:20px;font-weight:600;background:#fff;cursor:pointer;transition:all .1s;color:var(--text)}
+.pin-key:active{background:var(--blue-l);border-color:var(--blue);transform:scale(.95)}
+.pin-key.del{font-size:16px;color:var(--red)}
+.login-err{color:var(--red);font-size:13px;text-align:center;margin-top:8px;min-height:20px}
+
+/* ── PAGES ── */
+.page{display:none;min-height:100%}
+.page.active{display:block}
+
+/* ── HOME ── */
+.home-header{background:linear-gradient(135deg,var(--blue) 0%,var(--blue2) 100%);padding:20px 16px 24px;color:#fff}
+.home-greeting{font-size:14px;opacity:.85;margin-bottom:4px}
+.home-name{font-size:20px;font-weight:700}
+.stats-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px;margin-top:-12px}
+.stat-card{background:var(--surface);border-radius:var(--radius);padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.stat-val{font-size:24px;font-weight:700;color:var(--text)}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.section-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:0 16px;margin-bottom:10px}
+.quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px}
+.qa-btn{background:var(--surface);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;border:none;cursor:pointer;text-align:left;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.qa-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+.qa-icon svg{width:22px;height:22px;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.qa-label{font-size:14px;font-weight:600;color:var(--text)}
+.qa-sub{font-size:12px;color:var(--muted)}
+.today-list{padding:0 16px 80px}
+.tx-item{background:var(--surface);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.tx-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.tx-info{flex:1;min-width:0}
+.tx-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-time{font-size:12px;color:var(--muted);margin-top:2px}
+.tx-qty{font-size:15px;font-weight:700}
+.tx-qty.in{color:var(--green)}
+.tx-qty.out{color:var(--red)}
+.empty{text-align:center;padding:40px 20px;color:var(--hint)}
+.empty svg{width:48px;height:48px;stroke:var(--hint);fill:none;stroke-width:1.2;margin-bottom:12px}
+.empty p{font-size:14px}
+
+/* ── ASSETS LIST ── */
+.search-bar{padding:12px 16px;position:sticky;top:0;background:var(--bg);z-index:10}
+.search-input{width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px 10px 38px;font-size:15px;outline:none;color:var(--text)}
+.search-wrap{position:relative}
+.search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--hint);fill:none;stroke-width:2;pointer-events:none}
+.filter-row{display:flex;gap:8px;padding:0 16px 12px;overflow-x:auto;scrollbar-width:none}
+.filter-row::-webkit-scrollbar{display:none}
+.filter-chip{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;cursor:pointer;color:var(--muted);font-weight:500;white-space:nowrap}
+.filter-chip.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.asset-list{padding:0 16px 80px}
+.asset-row{background:var(--surface);border-radius:var(--radius);padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer;transition:transform .1s}
+.asset-row:active{transform:scale(.98)}
+.asset-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.asset-icon.circ{background:var(--blue-l)}
+.asset-icon.fixed{background:var(--green-l)}
+.asset-info{flex:1;min-width:0}
+.asset-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.asset-qr{font-size:11px;color:var(--muted);margin-top:2px}
+.asset-right{text-align:right;flex-shrink:0}
+.asset-qty{font-size:16px;font-weight:700;color:var(--text)}
+.asset-unit{font-size:11px;color:var(--muted)}
+.badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;margin-top:4px}
+.b-ok{background:var(--green-l);color:var(--green)}
+.b-warn{background:var(--orange-l);color:var(--orange)}
+.b-danger{background:var(--red-l);color:var(--red)}
+.b-info{background:var(--blue-l);color:var(--blue)}
+
+/* ── ASSET DETAIL ── */
+#detailPage{position:fixed;inset:0;z-index:100;background:var(--bg);transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;padding-bottom:80px}
+#detailPage.open{transform:translateX(0)}
+.detail-topbar{background:var(--surface);padding:calc(12px + var(--safe-top)) 16px 12px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+.back-btn{width:36px;height:36px;border-radius:10px;border:none;background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.back-btn svg{width:20px;height:20px;stroke:var(--text);fill:none;stroke-width:2;stroke-linecap:round}
+.detail-title{font-size:16px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.detail-img{width:100%;max-height:220px;object-fit:contain;background:var(--surface);border-bottom:1px solid var(--border)}
+.detail-body{padding:16px}
+.detail-qr{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.5px;margin-bottom:4px}
+.detail-name{font-size:20px;font-weight:700;margin-bottom:10px}
+.detail-badges{display:flex;gap:8px;margin-bottom:16px}
+.info-card{background:var(--surface);border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid var(--border)}
+.info-row:last-child{border:none}
+.info-label{font-size:13px;color:var(--muted)}
+.info-val{font-size:13px;font-weight:600;color:var(--text);text-align:right;max-width:60%}
+.info-val.big{font-size:20px;color:var(--blue)}
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.act-btn{padding:16px;border-radius:var(--radius);border:none;cursor:pointer;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.act-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.act-btn.income{background:var(--green);color:#fff}
+.act-btn.expense{background:var(--red);color:#fff}
+.act-btn.check{background:var(--blue-l);color:var(--blue);width:100%}
+.note-box{background:var(--orange-l);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--orange);margin-bottom:16px}
+.recent-title{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ── SCAN ── */
+.scan-container{display:flex;flex-direction:column;align-items:center;padding:24px 16px 80px}
+.scan-box{width:100%;max-width:320px;aspect-ratio:1;background:#000;border-radius:20px;overflow:hidden;position:relative;margin-bottom:20px}
+.scan-box video{width:100%;height:100%;object-fit:cover}
+.scan-corner{position:absolute;width:40px;height:40px;border-color:#fff;border-style:solid;opacity:.9}
+.scan-corner.tl{top:16px;left:16px;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
+.scan-corner.tr{top:16px;right:16px;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
+.scan-corner.bl{bottom:16px;left:16px;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
+.scan-corner.br{bottom:16px;right:16px;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
+.scan-line{position:absolute;left:16px;right:16px;height:2px;background:rgba(255,255,255,.6);animation:scanAnim 2s linear infinite}
+@keyframes scanAnim{0%{top:20px}100%{top:calc(100% - 20px)}}
+.scan-hint{font-size:14px;color:var(--muted);text-align:center;margin-bottom:16px}
+.scan-manual{width:100%;max-width:320px}
+.scan-input{width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:16px;background:var(--surface);color:var(--text);outline:none;margin-bottom:10px}
+.scan-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:600;cursor:pointer}
+.scan-result{width:100%;max-width:320px;margin-top:16px}
+
+/* ── TX MODAL ── */
+#txModal{position:fixed;inset:0;z-index:200;display:none}
+#txModal.open{display:flex;flex-direction:column;justify-content:flex-end}
+.tx-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.tx-sheet{background:var(--surface);border-radius:24px 24px 0 0;padding:20px 16px calc(20px + var(--safe-bot));position:relative;z-index:1}
+.tx-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px}
+.tx-sheet-title{font-size:18px;font-weight:700;margin-bottom:4px}
+.tx-sheet-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.tx-balance{background:var(--bg);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;margin-bottom:16px}
+.tx-balance-l{font-size:13px;color:var(--muted)}
+.tx-balance-r{font-size:15px;font-weight:700}
+.tx-field{margin-bottom:14px}
+.tx-field label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.tx-field input,.tx-field textarea{width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:16px;background:var(--bg);color:var(--text);outline:none;font-family:inherit}
+.tx-field textarea{resize:none;height:72px}
+.tx-submit{width:100%;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;color:#fff;margin-top:4px}
+.tx-submit.income{background:var(--green)}
+.tx-submit.expense{background:var(--red)}
+.tx-submit.check{background:var(--blue)}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:calc(80px + var(--safe-bot) + 10px);left:50%;transform:translateX(-50%) translateY(20px);background:#323232;color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;opacity:0;transition:all .25s;z-index:999;white-space:nowrap;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-logo">
+    <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+  </div>
+  <div class="login-title">Хөрөнгийн систем</div>
+  <div class="login-sub">Няравын гар утасны апп</div>
+  <div class="login-card">
+    <div class="login-label">Нярав сонгоно уу</div>
+    <div class="user-grid" id="userGrid"></div>
+    <div class="pin-label">PIN код</div>
+    <div class="pin-display">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="pin-grid">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key" onclick="pinKey('C')" style="font-size:14px;color:var(--muted)">Цэвэр</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key del" onclick="pinKey('DEL')">⌫</button>
+    </div>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div id="topbar">
+    <div>
+      <div id="topbar-title" style="font-size:17px;font-weight:600"></div>
+      <div id="topbar-sub" style="font-size:12px;opacity:.8;margin-top:2px"></div>
+    </div>
+    <button onclick="logout()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer">Гарах</button>
+  </div>
+
+  <div id="content">
+    <!-- HOME -->
+    <div class="page active" id="pageHome">
+      <div class="home-header">
+        <div class="home-greeting" id="homeGreeting"></div>
+        <div class="home-name" id="homeName"></div>
+      </div>
+      <div class="stats-row" id="statsRow"></div>
+      <div class="section-title">Үйлдэл</div>
+      <div class="quick-actions">
+        <button class="qa-btn" onclick="goTab('assets')">
+          <div class="qa-icon" style="background:var(--blue-l)">
+            <svg viewBox="0 0 24 24" style="stroke:var(--blue)"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+          </div>
+          <div class="qa-label">Хөрөнгө</div>
+          <div class="qa-sub">Жагсаалт харах</div>
+        </button>
+        <button class="qa-btn" onclick="goTab('scan')">
+          <div class="qa-icon" style="background:var(--green-l)">
+            <svg viewBox="0 0 24 24" style="stroke:var(--green)"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="16" y="3" width="5" height="5" rx="1"/><rect x="3" y="16" width="5" height="5" rx="1"/><path d="M21 16h-3v3"/><path d="M21 21v-1"/><path d="M16 16v5"/></svg>
+          </div>
+          <div class="qa-label">QR Скан</div>
+          <div class="qa-sub">Камераар уншуулах</div>
+        </button>
+        <button class="qa-btn" onclick="openTxDirect('income')">
+          <div class="qa-icon" style="background:var(--green-l)">
+            <svg viewBox="0 0 24 24" style="stroke:var(--green)"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+          </div>
+          <div class="qa-label">Орлого</div>
+          <div class="qa-sub">Хөрөнгө нэмэх</div>
+        </button>
+        <button class="qa-btn" onclick="openTxDirect('expense')">
+          <div class="qa-icon" style="background:var(--red-l)">
+            <svg viewBox="0 0 24 24" style="stroke:var(--red)"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+          </div>
+          <div class="qa-label">Зарлага</div>
+          <div class="qa-sub">Хөрөнгө гаргах</div>
+        </button>
+      </div>
+      <div class="section-title">Өнөөдрийн гүйлгээ</div>
+      <div class="today-list" id="todayList"></div>
+    </div>
+
+    <!-- ASSETS -->
+    <div class="page" id="pageAssets">
+      <div class="search-bar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="search-input" id="assetSearch" placeholder="Нэр, QR код хайх..." oninput="renderAssets()">
+        </div>
+      </div>
+      <div class="filter-row">
+        <div class="filter-chip active" id="fAll" onclick="setFilter('')">Бүгд</div>
+        <div class="filter-chip" id="fCirc" onclick="setFilter('Эргэлтийн')">Эргэлтийн</div>
+        <div class="filter-chip" id="fFixed" onclick="setFilter('Үндсэн')">Үндсэн</div>
+      </div>
+      <div class="asset-list" id="assetList"></div>
+    </div>
+
+    <!-- SCAN -->
+    <div class="page" id="pageScan">
+      <div class="scan-container">
+        <div class="scan-box" id="scanBox">
+          <video id="scanVideo" autoplay muted playsinline></video>
+          <div class="scan-corner tl"></div>
+          <div class="scan-corner tr"></div>
+          <div class="scan-corner bl"></div>
+          <div class="scan-corner br"></div>
+          <div class="scan-line"></div>
+        </div>
+        <p class="scan-hint">Хөрөнгийн QR кодыг камерт тусгана уу</p>
+        <div class="scan-manual">
+          <input class="scan-input" id="manualQR" placeholder="Эсвэл QR код гараар оруулна уу..." onkeydown="if(event.key==='Enter')manualScan()">
+          <button class="scan-btn" onclick="manualScan()">🔍 Хайх</button>
+        </div>
+        <div class="scan-result" id="scanResult"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAVBAR -->
+  <div id="navbar">
+    <button class="nav-btn active" id="nb-home" onclick="goTab('home')">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Нүүр
+    </button>
+    <button class="nav-btn" id="nb-assets" onclick="goTab('assets')">
+      <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Хөрөнгө
+    </button>
+    <button class="nav-btn" id="nb-scan" onclick="goTab('scan')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="16" y="3" width="5" height="5" rx="1"/><rect x="3" y="16" width="5" height="5" rx="1"/><path d="M21 16h-3v3"/><path d="M21 21v-1"/><path d="M16 16v5"/></svg>
+      Скан
+    </button>
+  </div>
+</div>
+
+<!-- DETAIL PAGE -->
+<div id="detailPage">
+  <div class="detail-topbar">
+    <button class="back-btn" onclick="closeDetail()">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="detail-title" id="detailTitle">Хөрөнгийн мэдээлэл</div>
+  </div>
+  <div id="detailBody"></div>
+</div>
+
+<!-- TX MODAL -->
+<div id="txModal">
+  <div class="tx-backdrop" onclick="closeTx()"></div>
+  <div class="tx-sheet">
+    <div class="tx-handle"></div>
+    <div class="tx-sheet-title" id="txTitle"></div>
+    <div class="tx-sheet-sub" id="txSub"></div>
+    <div class="tx-balance" id="txBalance" style="display:none">
+      <span class="tx-balance-l">Одоогийн үлдэгдэл</span>
+      <span class="tx-balance-r" id="txBalanceVal"></span>
+    </div>
+    <div id="txAssetSearch" style="display:none;margin-bottom:14px">
+      <input class="scan-input" id="txAssetQ" placeholder="Хөрөнгийн нэр, QR хайх..." oninput="searchTxAsset()">
+      <div id="txAssetResults"></div>
+    </div>
+    <div class="tx-field" id="txQtyField">
+      <label>Тоо хэмжээ</label>
+      <input type="number" id="txQty" value="1" min="1" inputmode="numeric">
+    </div>
+    <div class="tx-field">
+      <label>Тэмдэглэл</label>
+      <textarea id="txNote" placeholder="Нэмэлт тайлбар..."></textarea>
+    </div>
+    <button class="tx-submit" id="txSubmitBtn" onclick="submitTx()">Бүртгэх</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── DATA KEYS ──
+const KEYS={A:'ams_assets',U:'ams_users',T:'ams_transactions',W:'ams_warehouses',S:'ams_session'};
+
+// ── SEED DATA ──
+function seedUsers(){return[
+  {id:'u1',name:'Б.Болд',role:'naraa',naraaType:'Холбооны нярав',pin:'1111',warehouseId:'w3',active:true},
+  {id:'u2',name:'С.Мөнх',role:'naraa',naraaType:'Зэвсгийн нярав',pin:'2222',warehouseId:'w2',active:true},
+  {id:'u3',name:'Д.Ариун',role:'naraa',naraaType:'Хүнсний нярав',pin:'3333',warehouseId:'w1',active:true},
+  {id:'u4',name:'Н.Гантөгс',role:'naraa',naraaType:'Авто техникийн нярав',pin:'4444',warehouseId:'w4',active:true},
+  {id:'u5',name:'Ц.Туяа',role:'naraa',naraaType:'Хувцасны нярав',pin:'7777',warehouseId:'w1',active:true},
+  {id:'u6',name:'О.Батаа',role:'naraa',naraaType:'Эмнэлгийн нярав',pin:'8888',warehouseId:'w2',active:true},
+];}
+function seedWH(){return[
+  {id:'w1',name:'1-р агуулах'},{id:'w2',name:'2-р агуулах'},
+  {id:'w3',name:'3-р агуулах'},{id:'w4',name:'4-р агуулах'},
+];}
+
+function initDB(){
+  if(!ls(KEYS.U))save(KEYS.U,seedUsers());
+  if(!ls(KEYS.W))save(KEYS.W,seedWH());
+  if(!ls(KEYS.A))save(KEYS.A,[]);
+  if(!ls(KEYS.T))save(KEYS.T,[]);
+}
+
+function ls(k){return localStorage.getItem(k);}
+function save(k,v){localStorage.setItem(k,JSON.stringify(v));}
+function get(k){try{return JSON.parse(ls(k)||'[]');}catch{return[];}}
+
+function getUsers(){return get(KEYS.U);}
+function getWH(){return get(KEYS.W);}
+function getAssets(f={}){
+  let l=get(KEYS.A);
+  if(f.type)l=l.filter(a=>a.type===f.type);
+  if(f.naraa)l=l.filter(a=>{
+    const n=(a.naraaType||a.naraaName||'').trim();
+    return n===f.naraa||n.includes(f.naraa)||f.naraa.includes(n);
+  });
+  if(f.q){const q=f.q.toLowerCase();l=l.filter(a=>a.name.toLowerCase().includes(q)||a.qr.toLowerCase().includes(q));}
+  return l;
+}
+function getTx(f={}){
+  let l=get(KEYS.T);
+  if(f.assetId)l=l.filter(t=>t.assetId===f.assetId);
+  if(f.userId)l=l.filter(t=>t.userId===f.userId);
+  if(f.today){const d=new Date().toDateString();l=l.filter(t=>new Date(t.createdAt).toDateString()===d);}
+  return l.sort((a,b)=>b.createdAt-a.createdAt);
+}
+function addTx(tx){
+  const l=get(KEYS.T);
+  tx.id='tx'+Date.now();tx.createdAt=Date.now();
+  l.unshift(tx);save(KEYS.T,l);
+  // Update asset qty
+  const assets=get(KEYS.A);
+  const ai=assets.findIndex(a=>a.id===tx.assetId);
+  if(ai>=0){
+    if(tx.type==='income')assets[ai].qty+=tx.qty;
+    else if(tx.type==='expense')assets[ai].qty=Math.max(0,assets[ai].qty-tx.qty);
+    assets[ai].lastChecked=Date.now();
+    save(KEYS.A,assets);
+  }
+}
+function getImgUrl(qr){
+  try{const m=JSON.parse(ls('ams_img_map')||'{}');const id=m[qr.replace('QR-','')];return id?`https://drive.google.com/thumbnail?id=${id}&sz=w400`:null;}catch{return null;}
+}
+function currentUser(){try{return JSON.parse(ls(KEYS.S));}catch{return null;}}
+
+// ── LOGIN ──
+let selUser=null,pinVal='';
+function initLogin(){
+  const users=getUsers().filter(u=>u.role==='naraa'&&u.active);
+  const grid=document.getElementById('userGrid');
+  grid.innerHTML=users.map(u=>`<div class="user-chip" id="uc-${u.id}" onclick="selU('${u.id}')">
+    <div class="user-chip-name">${u.name}</div>
+    <div class="user-chip-role">${(u.naraaType||'').replace(' нярав','')}</div>
+  </div>`).join('');
+}
+function selU(id){
+  selUser=getUsers().find(u=>u.id===id);
+  document.querySelectorAll('.user-chip').forEach(c=>c.classList.remove('sel'));
+  const el=document.getElementById('uc-'+id);
+  if(el)el.classList.add('sel');
+  pinVal='';updateDots();
+  document.getElementById('loginErr').textContent='';
+}
+function pinKey(k){
+  if(!selUser){document.getElementById('loginErr').textContent='Нярав сонгоно уу';return;}
+  if(k==='DEL'){pinVal=pinVal.slice(0,-1);}
+  else if(k==='C'){pinVal='';}
+  else if(pinVal.length<4){pinVal+=k;}
+  updateDots();
+  if(pinVal.length===4)setTimeout(checkPin,100);
+}
+function updateDots(){
+  for(let i=0;i<4;i++){const d=document.getElementById('d'+i);d.classList.toggle('filled',i<pinVal.length);}
+}
+function checkPin(){
+  if(selUser&&selUser.pin===pinVal){
+    ls(KEYS.S);
+    localStorage.setItem(KEYS.S,JSON.stringify(selUser));
+    startApp();
+  } else {
+    document.getElementById('loginErr').textContent='PIN код буруу байна';
+    pinVal='';updateDots();
+  }
+}
+function logout(){
+  localStorage.removeItem(KEYS.S);
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  selUser=null;pinVal='';updateDots();
+  initLogin();
+}
+
+// ── APP START ──
+function startApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  const u=currentUser();
+  document.getElementById('topbar-title').textContent=u.name;
+  document.getElementById('topbar-sub').textContent=u.naraaType||'Нярав';
+  document.getElementById('homeGreeting').textContent=greeting();
+  document.getElementById('homeName').textContent=u.name;
+  renderHome();
+  goTab('home');
+}
+function greeting(){
+  const h=new Date().getHours();
+  return h<12?'Өглөөний мэнд 👋':h<17?'Өдрийн мэнд 👋':'Оройн мэнд 👋';
+}
+
+// ── HOME ──
+function renderHome(){
+  const u=currentUser();if(!u)return;
+  const myAssets=getAssets({naraa:u.naraaType});
+  const circ=myAssets.filter(a=>a.type==='Эргэлтийн').length;
+  const fixed=myAssets.filter(a=>a.type==='Үндсэн').length;
+  const txToday=getTx({userId:u.id,today:true});
+  document.getElementById('statsRow').innerHTML=`
+    <div class="stat-card"><div class="stat-label">Нийт хөрөнгө</div><div class="stat-val">${myAssets.length}</div><div class="stat-sub">Миний хариуцсан</div></div>
+    <div class="stat-card"><div class="stat-label">Өнөөдрийн гүйлгээ</div><div class="stat-val" style="color:var(--blue)">${txToday.length}</div><div class="stat-sub">${circ} эргэлтийн · ${fixed} үндсэн</div></div>
+  `;
+  const el=document.getElementById('todayList');
+  if(!txToday.length){el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p>Өнөөдөр гүйлгээ байхгүй байна</p></div>`;return;}
+  const icons={income:'📥',expense:'📤',check:'✅'};
+  el.innerHTML=txToday.slice(0,10).map(t=>`
+    <div class="tx-item">
+      <div class="tx-icon" style="background:${t.type==='income'?'var(--green-l)':t.type==='expense'?'var(--red-l)':'var(--blue-l)'}">${icons[t.type]||'📋'}</div>
+      <div class="tx-info">
+        <div class="tx-name">${t.assetName||'Хөрөнгө'}</div>
+        <div class="tx-time">${new Date(t.createdAt).toLocaleTimeString('mn-MN',{hour:'2-digit',minute:'2-digit'})} · ${t.note||''}</div>
+      </div>
+      <div class="tx-qty ${t.type==='income'?'in':'out'}">${t.type==='check'?'✓':(t.type==='income'?'+':'-')+t.qty}</div>
+    </div>`).join('');
+}
+
+// ── TABS ──
+let curTab='home';
+function goTab(tab){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page'+cap(tab)).classList.add('active');
+  document.getElementById('nb-'+tab).classList.add('active');
+  curTab=tab;
+  if(tab==='assets')renderAssets();
+  if(tab==='scan')initScan();
+  if(tab==='home')renderHome();
+}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+
+// ── ASSETS ──
+let typeFilter='';
+function setFilter(t){
+  typeFilter=t;
+  ['fAll','fCirc','fFixed'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  document.getElementById(t===''?'fAll':t==='Эргэлтийн'?'fCirc':'fFixed').classList.add('active');
+  renderAssets();
+}
+function renderAssets(){
+  const u=currentUser();if(!u)return;
+  const q=document.getElementById('assetSearch').value;
+  const f={naraa:u.naraaType};
+  if(typeFilter)f.type=typeFilter;
+  if(q)f.q=q;
+  const assets=getAssets(f);
+  const whs=getWH();
+  const el=document.getElementById('assetList');
+  if(!assets.length){
+    el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/></svg><p>Хөрөнгө олдсонгүй</p></div>`;
+    return;
+  }
+  el.innerHTML=assets.map(a=>{
+    const wh=whs.find(w=>w.id===a.warehouseId);
+    const bc={Сайн:'b-ok',Дутуу:'b-warn',Засварт:'b-danger'}[a.status]||'b-ok';
+    return`<div class="asset-row" onclick="showDetail('${a.id}')">
+      <div class="asset-icon ${a.type==='Эргэлтийн'?'circ':'fixed'}">${a.type==='Эргэлтийн'?'📦':'🏢'}</div>
+      <div class="asset-info">
+        <div class="asset-name">${a.name}</div>
+        <div class="asset-qr">${a.qr}${wh?' · '+wh.name:''}</div>
+      </div>
+      <div class="asset-right">
+        <div class="asset-qty">${a.qty}</div>
+        <div class="asset-unit">${a.unit||''}</div>
+        <span class="badge ${bc}">${a.status||'Сайн'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── DETAIL ──
+function showDetail(id){
+  const a=get(KEYS.A).find(x=>x.id===id);
+  if(!a)return;
+  const whs=getWH();
+  const wh=whs.find(w=>w.id===a.warehouseId);
+  const bc={Сайн:'b-ok',Дутуу:'b-warn',Засварт:'b-danger'}[a.status]||'b-ok';
+  const tc=a.type==='Эргэлтийн'?'b-info':'b-ok';
+  const imgUrl=getImgUrl(a.qr);
+  const txs=getTx({assetId:a.id}).slice(0,5);
+  const icons={income:'📥',expense:'📤',check:'✅'};
+
+  document.getElementById('detailTitle').textContent=a.name;
+  document.getElementById('detailBody').innerHTML=`
+    ${imgUrl?`<img src="${imgUrl}" class="detail-img" onerror="this.style.display='none'" alt="${a.name}">`:''}
+    <div class="detail-body">
+      <div class="detail-qr">${a.qr}</div>
+      <div class="detail-name">${a.name}</div>
+      <div class="detail-badges">
+        <span class="badge ${bc}">${a.status||'Сайн'}</span>
+        <span class="badge ${tc}">${a.type}</span>
+      </div>
+      <div class="info-card">
+        <div class="info-row"><span class="info-label">Тоо хэмжээ</span><span class="info-val big">${a.qty} ${a.unit||''}</span></div>
+        <div class="info-row"><span class="info-label">Агуулах</span><span class="info-val">${wh?wh.name:'—'}</span></div>
+        <div class="info-row"><span class="info-label">Ангилал</span><span class="info-val">${a.category||'—'}</span></div>
+        <div class="info-row"><span class="info-label">Данс №</span><span class="info-val">${a.accountNo||'—'}</span></div>
+        <div class="info-row"><span class="info-label">Сүүлийн шалгалт</span><span class="info-val">${new Date(a.lastChecked||Date.now()).toLocaleDateString('mn-MN')}</span></div>
+      </div>
+      ${a.note?`<div class="note-box">📝 ${a.note}</div>`:''}
+      <div class="action-grid">
+        <button class="act-btn income" onclick="openTx('${a.id}','income')">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg> Орлого
+        </button>
+        <button class="act-btn expense" onclick="openTx('${a.id}','expense')">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg> Зарлага
+        </button>
+      </div>
+      <button class="act-btn check" onclick="openTx('${a.id}','check')">
+        ✅ QR шалгалт бүртгэх
+      </button>
+      ${txs.length?`<div class="recent-title" style="margin-top:20px">Сүүлийн гүйлгээ</div>`:''}
+      ${txs.map(t=>`<div class="tx-item" style="margin-bottom:8px">
+        <div class="tx-icon" style="background:${t.type==='income'?'var(--green-l)':t.type==='expense'?'var(--red-l)':'var(--blue-l)'}">${icons[t.type]||'📋'}</div>
+        <div class="tx-info">
+          <div class="tx-name">${{income:'Орлого',expense:'Зарлага',check:'QR шалгалт'}[t.type]}</div>
+          <div class="tx-time">${new Date(t.createdAt).toLocaleString('mn-MN')} · ${t.note||''}</div>
+        </div>
+        <div class="tx-qty ${t.type==='income'?'in':'out'}">${t.type==='check'?'✓':(t.type==='income'?'+':'-')+t.qty}</div>
+      </div>`).join('')}
+    </div>`;
+  document.getElementById('detailPage').classList.add('open');
+}
+function closeDetail(){
+  document.getElementById('detailPage').classList.remove('open');
+}
+
+// ── SCAN ──
+let scanStream=null,scanTimer=null;
+function initScan(){
+  if(scanStream)return;
+  if(!navigator.mediaDevices){document.getElementById('scanResult').innerHTML='<div class="empty"><p>Камер дэмжигдэхгүй байна</p></div>';return;}
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
+    .then(s=>{scanStream=s;const v=document.getElementById('scanVideo');v.srcObject=s;v.play();startDecode();})
+    .catch(()=>{document.getElementById('scanResult').innerHTML='<div class="empty"><p>Камерт зөвшөөрөл өгнө үү</p></div>';});
+}
+function startDecode(){
+  if(!window.BarcodeDetector){scanTimer=null;return;}
+  const bd=new BarcodeDetector({formats:['qr_code']});
+  const v=document.getElementById('scanVideo');
+  scanTimer=setInterval(async()=>{
+    if(v.readyState<2)return;
+    try{const r=await bd.detect(v);if(r.length){handleScan(r[0].rawValue);}}catch{}
+  },500);
+}
+function handleScan(val){
+  clearInterval(scanTimer);
+  if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}
+  const qr=val.startsWith('QR-')?val:'QR-'+val.padStart(8,'0');
+  showScanResult(qr);
+}
+function manualScan(){
+  const v=document.getElementById('manualQR').value.trim();
+  if(!v)return;
+  const qr=v.startsWith('QR-')?v:'QR-'+v.padStart(8,'0');
+  showScanResult(qr);
+}
+function showScanResult(qr){
+  const assets=get(KEYS.A);
+  const a=assets.find(x=>x.qr===qr||x.id===qr);
+  const el=document.getElementById('scanResult');
+  if(!a){el.innerHTML=`<div class="info-card"><div class="info-row"><span style="color:var(--red);font-weight:600">🔍 Хөрөнгө олдсонгүй: ${qr}</span></div></div>`;return;}
+  const bc={Сайн:'b-ok',Дутуу:'b-warn',Засварт:'b-danger'}[a.status]||'b-ok';
+  el.innerHTML=`<div class="info-card">
+    <div class="info-row"><span class="info-label">Нэр</span><span class="info-val">${a.name}</span></div>
+    <div class="info-row"><span class="info-label">Тоо хэмжээ</span><span class="info-val big">${a.qty} ${a.unit||''}</span></div>
+    <div class="info-row"><span class="info-label">Статус</span><span class="badge ${bc}">${a.status||'Сайн'}</span></div>
+  </div>
+  <div class="action-grid" style="margin-top:10px">
+    <button class="act-btn income" onclick="openTx('${a.id}','income')"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg> Орлого</button>
+    <button class="act-btn expense" onclick="openTx('${a.id}','expense')"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg> Зарлага</button>
+  </div>
+  <button class="act-btn check" style="width:100%;margin-top:10px" onclick="openTx('${a.id}','check')">✅ QR шалгалт бүртгэх</button>
+  <button style="width:100%;margin-top:8px;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:12px;font-size:14px;cursor:pointer;color:var(--blue);font-weight:600" onclick="showDetail('${a.id}')">📋 Дэлгэрэнгүй харах</button>`;
+}
+function stopScan(){if(scanTimer)clearInterval(scanTimer);if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}}
+
+// ── TX MODAL ──
+let txAssetId=null,txType=null;
+function openTx(assetId,type){
+  txAssetId=assetId;txType=type;
+  const a=get(KEYS.A).find(x=>x.id===assetId);
+  const labels={income:'📥 Орлого бүртгэх',expense:'📤 Зарлага бүртгэх',check:'✅ QR шалгалт'};
+  const colors={income:'income',expense:'expense',check:'check'};
+  document.getElementById('txTitle').textContent=labels[type];
+  document.getElementById('txSub').textContent=a?a.name:'';
+  document.getElementById('txQtyField').style.display=type==='check'?'none':'block';
+  const bal=document.getElementById('txBalance');
+  if(a){bal.style.display='flex';document.getElementById('txBalanceVal').textContent=a.qty+' '+(a.unit||'');}
+  else bal.style.display='none';
+  document.getElementById('txAssetSearch').style.display='none';
+  document.getElementById('txQty').value=1;
+  document.getElementById('txNote').value='';
+  document.getElementById('txSubmitBtn').className='tx-submit '+colors[type];
+  document.getElementById('txModal').classList.add('open');
+}
+function openTxDirect(type){
+  txAssetId=null;txType=type;
+  const labels={income:'📥 Орлого бүртгэх',expense:'📤 Зарлага бүртгэх'};
+  document.getElementById('txTitle').textContent=labels[type];
+  document.getElementById('txSub').textContent='Хөрөнгө сонгоно уу';
+  document.getElementById('txQtyField').style.display='block';
+  document.getElementById('txBalance').style.display='none';
+  document.getElementById('txAssetSearch').style.display='block';
+  document.getElementById('txAssetQ').value='';
+  document.getElementById('txAssetResults').innerHTML='';
+  document.getElementById('txQty').value=1;
+  document.getElementById('txNote').value='';
+  document.getElementById('txSubmitBtn').className='tx-submit '+type;
+  document.getElementById('txModal').classList.add('open');
+}
+function searchTxAsset(){
+  const q=document.getElementById('txAssetQ').value;
+  const u=currentUser();
+  const results=getAssets({naraa:u.naraaType,q}).slice(0,5);
+  document.getElementById('txAssetResults').innerHTML=results.map(a=>`
+    <div onclick="selTxAsset('${a.id}')" style="padding:10px 12px;border:1.5px solid ${txAssetId===a.id?'var(--blue)':'var(--border)'};border-radius:10px;margin-top:6px;cursor:pointer;background:${txAssetId===a.id?'var(--blue-l)':'var(--surface)'}">
+      <div style="font-size:14px;font-weight:600">${a.name}</div>
+      <div style="font-size:12px;color:var(--muted)">${a.qr} · ${a.qty} ${a.unit||''} үлдэгдэл</div>
+    </div>`).join('');
+}
+function selTxAsset(id){
+  txAssetId=id;
+  const a=get(KEYS.A).find(x=>x.id===id);
+  if(a){const b=document.getElementById('txBalance');b.style.display='flex';document.getElementById('txBalanceVal').textContent=a.qty+' '+(a.unit||'');}
+  searchTxAsset();
+}
+function closeTx(){document.getElementById('txModal').classList.remove('open');}
+function submitTx(){
+  if(!txAssetId){showToast('Хөрөнгө сонгоно уу','err');return;}
+  const a=get(KEYS.A).find(x=>x.id===txAssetId);
+  if(!a)return;
+  const u=currentUser();
+  const qty=parseInt(document.getElementById('txQty').value)||1;
+  const note=document.getElementById('txNote').value;
+  addTx({assetId:a.id,assetName:a.name,assetQR:a.qr,userId:u.id,userName:u.name,type:txType,qty,note});
+  closeTx();
+  closeDetail();
+  const msgs={income:'✅ Орлого бүртгэгдлээ',expense:'✅ Зарлага бүртгэгдлээ',check:'✅ QR шалгалт бүртгэгдлээ'};
+  showToast(msgs[txType]);
+  renderHome();
+  if(curTab==='assets')renderAssets();
+}
+
+// ── TOAST ──
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ── INIT ──
+initDB();
+const u=currentUser();
+if(u&&u.role==='naraa'){startApp();}
+else{initLogin();}
+</script>
+</body>
+</html>
