@@ -472,6 +472,136 @@ html,body{height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSys
   </div>
 </div>
 
+
+<!-- ОРЛОГО MODAL -->
+<div id="incomeModal" style="position:fixed;inset:0;z-index:300;display:none;flex-direction:column;justify-content:flex-end">
+  <div onclick="closeIncome()" style="position:absolute;inset:0;background:rgba(0,0,0,.5)"></div>
+  <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-height:94vh;overflow-y:auto;position:relative;z-index:1;padding:20px 16px calc(24px + env(safe-area-inset-bottom))">
+    <div style="width:36px;height:4px;background:#eee;border-radius:2px;margin:0 auto 14px"></div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px">📥 Орлого бүртгэх</div>
+    <div style="font-size:13px;color:#888;margin-bottom:16px">Шинэ бараа материал бүртгэх</div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Зураг</label>
+      <div id="incImgPreview" onclick="document.getElementById('incImgInput').click()" style="width:100%;height:130px;background:#f5f5f5;border-radius:12px;border:2px dashed #ddd;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span style="font-size:12px;color:#bbb;margin-top:6px">Камераар авах / Галерейгаас</span>
+      </div>
+      <input type="file" id="incImgInput" accept="image/*" capture="environment" style="display:none" onchange="previewIncImg(this)">
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Бараа материалын нэр *</label>
+      <input id="inc-name" type="text" placeholder="Нэр оруулна уу" style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:15px;background:#f9f9f9;color:#111;outline:none;font-family:inherit;box-sizing:border-box">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Төрөл *</label>
+        <select id="inc-type" style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 10px;font-size:13px;background:#f9f9f9;color:#111;outline:none;font-family:inherit">
+          <option value="Эргэлтийн">Эргэлтийн</option>
+          <option value="Үндсэн">Үндсэн</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Статус</label>
+        <select id="inc-status" style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 10px;font-size:13px;background:#f9f9f9;color:#111;outline:none;font-family:inherit">
+          <option value="Сайн">Сайн</option>
+          <option value="Дутуу">Дутуу</option>
+          <option value="Засварт">Засварт</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Категори</label>
+      <select id="inc-cat" style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:14px;background:#f9f9f9;color:#111;outline:none;font-family:inherit">
+        <option value="">— Сонгох —</option>
+        <option>Хүний нөөц</option><option>Ажиллагаа удирдлагын тасаг</option>
+        <option>Тагнуулын тасаг</option><option>Сургалтын тасаг</option>
+        <option>1-р рот</option><option>2-р рот</option><option>3-р рот</option><option>4-р рот</option>
+        <option>Байлдааны хангалтын рот</option><option>Хангалт үйлчилгээний рот</option>
+        <option>Санхүүгийн тасаг</option><option>Эмнэлгийн тасаг</option><option>Холбооны салаа</option>
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Тоо хэмжээ *</label>
+        <input id="inc-qty" type="number" value="1" min="1" inputmode="numeric" oninput="calcTotal()" style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:16px;font-weight:700;background:#f9f9f9;color:#111;outline:none;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Нэгж</label>
+        <input id="inc-unit" type="text" placeholder="ширхэг, кг..." style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:14px;background:#f9f9f9;color:#111;outline:none;font-family:inherit;box-sizing:border-box">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Нэгж үнэ (₮)</label>
+        <input id="inc-price" type="number" value="0" min="0" inputmode="numeric" oninput="calcTotal()" style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:14px;background:#f9f9f9;color:#111;outline:none;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Нийт дүн (₮)</label>
+        <div id="inc-total" style="border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:14px;font-weight:700;background:#e8f0fe;color:#1565C0">0</div>
+      </div>
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Данс №</label>
+      <input id="inc-accountno" type="text" placeholder="39... = Үндсэн, бусад = Эргэлтийн" style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:14px;background:#f9f9f9;color:#111;outline:none;font-family:inherit;box-sizing:border-box">
+    </div>
+    <div style="margin-bottom:10px;background:#e3f2fd;border-radius:12px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:13px;color:#888;font-weight:600">Нярав</span>
+      <span id="inc-naraa" style="font-size:14px;font-weight:700;color:#1565C0"></span>
+    </div>
+    <div style="margin-bottom:10px;background:#f5f5f5;border-radius:12px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:13px;color:#888;font-weight:600">Бүртгэсэн огноо</span>
+      <span id="inc-date" style="font-size:14px;font-weight:600;color:#111"></span>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Тэмдэглэл</label>
+      <textarea id="inc-note" placeholder="Нэмэлт мэдээлэл..." style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:14px;background:#f9f9f9;color:#111;outline:none;font-family:inherit;resize:none;height:72px;box-sizing:border-box"></textarea>
+    </div>
+    <button onclick="submitIncome()" style="width:100%;background:#2E7D32;color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer">✅ Орлого бүртгэх</button>
+    <button onclick="closeIncome()" style="width:100%;background:transparent;border:none;color:#888;padding:12px;font-size:14px;cursor:pointer;margin-top:4px">Цуцлах</button>
+  </div>
+</div>
+
+<!-- ЗАРЛАГА MODAL -->
+<div id="expenseModal" style="position:fixed;inset:0;z-index:300;display:none;flex-direction:column;justify-content:flex-end">
+  <div onclick="closeExpense()" style="position:absolute;inset:0;background:rgba(0,0,0,.5)"></div>
+  <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-height:88vh;overflow-y:auto;position:relative;z-index:1;padding:20px 16px calc(24px + env(safe-area-inset-bottom))">
+    <div style="width:36px;height:4px;background:#eee;border-radius:2px;margin:0 auto 14px"></div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px">📤 Зарлага бүртгэх</div>
+    <div style="font-size:13px;color:#888;margin-bottom:16px">Байгаа барааг гаргах</div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Хөрөнгө хайх *</label>
+      <input id="exp-search" type="text" placeholder="Нэр, QR код хайх..." oninput="searchExpAsset()" style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:15px;background:#f9f9f9;color:#111;outline:none;font-family:inherit;box-sizing:border-box">
+      <div id="exp-results" style="margin-top:6px"></div>
+    </div>
+    <div id="exp-selected" style="display:none;background:#e3f2fd;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:13px;color:#888;margin-bottom:4px">Сонгогдсон хөрөнгө</div>
+      <div id="exp-sel-name" style="font-size:15px;font-weight:700;color:#111"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <span style="font-size:13px;color:#888">Үлдэгдэл</span>
+        <span id="exp-sel-qty" style="font-size:14px;font-weight:700;color:#1565C0"></span>
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Гаргах тоо хэмжээ *</label>
+      <input id="exp-qty" type="number" value="1" min="1" inputmode="numeric" style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:16px;font-weight:700;background:#f9f9f9;color:#111;outline:none;font-family:inherit;box-sizing:border-box">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Зураг (заавал биш)</label>
+      <div id="expImgPreview" onclick="document.getElementById('expImgInput').click()" style="width:100%;height:100px;background:#f5f5f5;border-radius:12px;border:2px dashed #ddd;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span style="font-size:12px;color:#bbb;margin-top:4px">Зураг нэмэх</span>
+      </div>
+      <input type="file" id="expImgInput" accept="image/*" capture="environment" style="display:none" onchange="previewExpImg(this)">
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Тэмдэглэл</label>
+      <textarea id="exp-note" placeholder="Хэнд өгсөн, ямар зорилгоор..." style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:14px;background:#f9f9f9;color:#111;outline:none;font-family:inherit;resize:none;height:72px;box-sizing:border-box"></textarea>
+    </div>
+    <button onclick="submitExpense()" style="width:100%;background:#C62828;color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer">✅ Зарлага бүртгэх</button>
+    <button onclick="closeExpense()" style="width:100%;background:transparent;border:none;color:#888;padding:12px;font-size:14px;cursor:pointer;margin-top:4px">Цуцлах</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
