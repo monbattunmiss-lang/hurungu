@@ -256,14 +256,14 @@ html,body{height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSys
           <div class="qa-label">QR Скан</div>
           <div class="qa-sub">Камераар уншуулах</div>
         </button>
-        <button class="qa-btn" onclick="openTxDirect('income')">
+        <button class="qa-btn" onclick="openIncomeDirect()">
           <div class="qa-icon" style="background:var(--green-l)">
             <svg viewBox="0 0 24 24" style="stroke:var(--green)"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
           </div>
           <div class="qa-label">Орлого</div>
           <div class="qa-sub">Хөрөнгө нэмэх</div>
         </button>
-        <button class="qa-btn" onclick="openTxDirect('expense')">
+        <button class="qa-btn" onclick="openExpenseDirect()">
           <div class="qa-icon" style="background:var(--red-l)">
             <svg viewBox="0 0 24 24" style="stroke:var(--red)"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
           </div>
@@ -796,71 +796,178 @@ function showScanResult(qr){
 }
 function stopScan(){if(scanTimer)clearInterval(scanTimer);if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}}
 
-// ── TX MODAL ──
-let txAssetId=null,txType=null;
+// ── ОРЛОГО MODAL ──
+let incImg=null;
+function openIncomeDirect(){openIncome(null);}
+function openIncome(assetId){
+  incImg=null;
+  const u=currentUser();
+  document.getElementById('inc-name').value='';
+  document.getElementById('inc-type').value='Эргэлтийн';
+  document.getElementById('inc-status').value='Сайн';
+  document.getElementById('inc-cat').value='';
+  document.getElementById('inc-qty').value='1';
+  document.getElementById('inc-unit').value='';
+  document.getElementById('inc-price').value='0';
+  document.getElementById('inc-accountno').value='';
+  document.getElementById('inc-note').value='';
+  document.getElementById('inc-total').textContent='0';
+  document.getElementById('inc-naraa').textContent=u.name+' ('+u.naraaType+')';
+  document.getElementById('inc-date').textContent=new Date().toLocaleDateString('mn-MN');
+  document.getElementById('incImgInput').value='';
+  document.getElementById('incImgPreview').innerHTML=`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--hint)" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span style="font-size:12px;color:var(--hint);margin-top:6px">Камераар авах / Галерейгаас</span>`;
+  if(assetId){
+    const a=get(KEYS.A).find(x=>x.id===assetId);
+    if(a){document.getElementById('inc-name').value=a.name;document.getElementById('inc-type').value=a.type;document.getElementById('inc-unit').value=a.unit||'';}
+  }
+  document.getElementById('incomeModal').style.display='flex';
+}
+function closeIncome(){document.getElementById('incomeModal').style.display='none';}
+function previewIncImg(input){
+  if(!input.files||!input.files[0])return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    incImg=e.target.result;
+    document.getElementById('incImgPreview').innerHTML=`<img src="${incImg}" style="width:100%;height:100%;object-fit:cover">`;
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+function calcTotal(){
+  const qty=parseInt(document.getElementById('inc-qty').value)||0;
+  const price=parseInt(document.getElementById('inc-price').value)||0;
+  document.getElementById('inc-total').textContent=(qty*price).toLocaleString('mn-MN')+'₮';
+}
+function submitIncome(){
+  const name=document.getElementById('inc-name').value.trim();
+  if(!name){showToast('Нэр оруулна уу');return;}
+  const u=currentUser();
+  const assets=get(KEYS.A);
+  const accountNo=document.getElementById('inc-accountno').value.trim();
+  const autoType=accountNo.startsWith('39')?'Үндсэн':accountNo?'Эргэлтийн':document.getElementById('inc-type').value;
+  const qty=parseInt(document.getElementById('inc-qty').value)||1;
+  const price=parseInt(document.getElementById('inc-price').value)||0;
+  const newId='a'+Date.now();
+  const qr='QR-'+String(assets.length+1).padStart(8,'0');
+  const asset={
+    id:newId,qr,name,type:autoType,
+    category:document.getElementById('inc-cat').value||'—',
+    unit:document.getElementById('inc-unit').value||'ширхэг',
+    qty,price,total:qty*price,
+    warehouseId:u.warehouseId||null,
+    naraaType:u.naraaType||'',naraaName:u.name||'',userId:u.id,
+    status:document.getElementById('inc-status').value||'Сайн',
+    accountNo,note:document.getElementById('inc-note').value.trim(),
+    createdAt:Date.now(),lastChecked:Date.now()
+  };
+  assets.push(asset);
+  save(KEYS.A,assets);
+  addTx({assetId:newId,assetName:name,assetQR:qr,userId:u.id,userName:u.name,type:'income',qty,note:document.getElementById('inc-note').value});
+  if(incImg){
+    try{const m=JSON.parse(localStorage.getItem('ams_img_local')||'{}');m[newId]=incImg;localStorage.setItem('ams_img_local',JSON.stringify(m));}catch(e){}
+  }
+  if(typeof pushToCloud==='function'){pushToCloud('assets',assets);pushToCloud('transactions',get(KEYS.T));}
+  closeIncome();
+  showToast('✅ '+name+' бүртгэгдлээ! QR: '+qr);
+  renderHome();if(curTab==='assets')renderAssets();
+}
+
+// ── ЗАРЛАГА MODAL ──
+let expAssetId=null,expImg=null;
+function openExpenseDirect(){openExpense(null);}
+function openExpense(assetId){
+  expAssetId=assetId;expImg=null;
+  document.getElementById('exp-search').value='';
+  document.getElementById('exp-results').innerHTML='';
+  document.getElementById('exp-qty').value='1';
+  document.getElementById('exp-note').value='';
+  document.getElementById('expImgInput').value='';
+  document.getElementById('expImgPreview').innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--hint)" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span style="font-size:12px;color:var(--hint);margin-top:4px">Зураг нэмэх</span>`;
+  const sel=document.getElementById('exp-selected');
+  if(assetId){
+    const a=get(KEYS.A).find(x=>x.id===assetId);
+    if(a){
+      expAssetId=assetId;sel.style.display='block';
+      document.getElementById('exp-sel-name').textContent=a.name;
+      document.getElementById('exp-sel-qty').textContent=a.qty+' '+(a.unit||'');
+      document.getElementById('exp-search').value=a.name;
+    }
+  } else {sel.style.display='none';}
+  document.getElementById('expenseModal').style.display='flex';
+}
+function closeExpense(){document.getElementById('expenseModal').style.display='none';}
+function previewExpImg(input){
+  if(!input.files||!input.files[0])return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    expImg=e.target.result;
+    document.getElementById('expImgPreview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+function searchExpAsset(){
+  const q=document.getElementById('exp-search').value;
+  const u=currentUser();
+  const results=getAssets({naraa:u.naraaType,q}).slice(0,6);
+  document.getElementById('exp-results').innerHTML=results.map(a=>`
+    <div onclick="selExpAsset('${a.id}')" style="padding:10px 12px;border:1.5px solid ${expAssetId===a.id?'var(--blue)':'var(--border)'};border-radius:10px;margin-top:6px;cursor:pointer;background:${expAssetId===a.id?'var(--blue-l)':'var(--surface)'}">
+      <div style="font-size:14px;font-weight:600">${a.name}</div>
+      <div style="font-size:12px;color:var(--muted)">${a.qr} · Үлдэгдэл: <strong>${a.qty} ${a.unit||''}</strong></div>
+    </div>`).join('');
+}
+function selExpAsset(id){
+  expAssetId=id;
+  const a=get(KEYS.A).find(x=>x.id===id);
+  if(a){
+    document.getElementById('exp-selected').style.display='block';
+    document.getElementById('exp-sel-name').textContent=a.name;
+    document.getElementById('exp-sel-qty').textContent=a.qty+' '+(a.unit||'');
+    document.getElementById('exp-results').innerHTML='';
+    document.getElementById('exp-search').value=a.name;
+  }
+}
+function submitExpense(){
+  if(!expAssetId){showToast('Хөрөнгө сонгоно уу');return;}
+  const a=get(KEYS.A).find(x=>x.id===expAssetId);
+  if(!a)return;
+  const qty=parseInt(document.getElementById('exp-qty').value)||1;
+  if(qty>a.qty){showToast('Үлдэгдлээс их байна!');return;}
+  const note=document.getElementById('exp-note').value;
+  const u=currentUser();
+  addTx({assetId:a.id,assetName:a.name,assetQR:a.qr,userId:u.id,userName:u.name,type:'expense',qty,note});
+  if(typeof pushToCloud==='function'){pushToCloud('assets',get(KEYS.A));pushToCloud('transactions',get(KEYS.T));}
+  closeExpense();closeDetail();
+  showToast('✅ Зарлага бүртгэгдлээ');
+  renderHome();if(curTab==='assets')renderAssets();
+}
+
+// ── QR ШАЛГАЛТ ──
+let txAssetId=null,txType='check';
 function openTx(assetId,type){
-  txAssetId=assetId;txType=type;
+  if(type==='income'){openIncome(assetId);return;}
+  if(type==='expense'){openExpense(assetId);return;}
+  txAssetId=assetId;
   const a=get(KEYS.A).find(x=>x.id===assetId);
-  const labels={income:'📥 Орлого бүртгэх',expense:'📤 Зарлага бүртгэх',check:'✅ QR шалгалт'};
-  const colors={income:'income',expense:'expense',check:'check'};
-  document.getElementById('txTitle').textContent=labels[type];
+  document.getElementById('txTitle').textContent='✅ QR шалгалт';
   document.getElementById('txSub').textContent=a?a.name:'';
-  document.getElementById('txQtyField').style.display=type==='check'?'none':'block';
-  const bal=document.getElementById('txBalance');
-  if(a){bal.style.display='flex';document.getElementById('txBalanceVal').textContent=a.qty+' '+(a.unit||'');}
-  else bal.style.display='none';
-  document.getElementById('txAssetSearch').style.display='none';
-  document.getElementById('txQty').value=1;
   document.getElementById('txNote').value='';
-  document.getElementById('txSubmitBtn').className='tx-submit '+colors[type];
   document.getElementById('txModal').classList.add('open');
 }
 function openTxDirect(type){
-  txAssetId=null;txType=type;
-  const labels={income:'📥 Орлого бүртгэх',expense:'📤 Зарлага бүртгэх'};
-  document.getElementById('txTitle').textContent=labels[type];
-  document.getElementById('txSub').textContent='Хөрөнгө сонгоно уу';
-  document.getElementById('txQtyField').style.display='block';
-  document.getElementById('txBalance').style.display='none';
-  document.getElementById('txAssetSearch').style.display='block';
-  document.getElementById('txAssetQ').value='';
-  document.getElementById('txAssetResults').innerHTML='';
-  document.getElementById('txQty').value=1;
-  document.getElementById('txNote').value='';
-  document.getElementById('txSubmitBtn').className='tx-submit '+type;
-  document.getElementById('txModal').classList.add('open');
-}
-function searchTxAsset(){
-  const q=document.getElementById('txAssetQ').value;
-  const u=currentUser();
-  const results=getAssets({naraa:u.naraaType,q}).slice(0,5);
-  document.getElementById('txAssetResults').innerHTML=results.map(a=>`
-    <div onclick="selTxAsset('${a.id}')" style="padding:10px 12px;border:1.5px solid ${txAssetId===a.id?'var(--blue)':'var(--border)'};border-radius:10px;margin-top:6px;cursor:pointer;background:${txAssetId===a.id?'var(--blue-l)':'var(--surface)'}">
-      <div style="font-size:14px;font-weight:600">${a.name}</div>
-      <div style="font-size:12px;color:var(--muted)">${a.qr} · ${a.qty} ${a.unit||''} үлдэгдэл</div>
-    </div>`).join('');
-}
-function selTxAsset(id){
-  txAssetId=id;
-  const a=get(KEYS.A).find(x=>x.id===id);
-  if(a){const b=document.getElementById('txBalance');b.style.display='flex';document.getElementById('txBalanceVal').textContent=a.qty+' '+(a.unit||'');}
-  searchTxAsset();
+  if(type==='income'){openIncomeDirect();return;}
+  if(type==='expense'){openExpenseDirect();return;}
 }
 function closeTx(){document.getElementById('txModal').classList.remove('open');}
 function submitTx(){
-  if(!txAssetId){showToast('Хөрөнгө сонгоно уу','err');return;}
+  if(!txAssetId)return;
   const a=get(KEYS.A).find(x=>x.id===txAssetId);
   if(!a)return;
   const u=currentUser();
-  const qty=parseInt(document.getElementById('txQty').value)||1;
   const note=document.getElementById('txNote').value;
-  addTx({assetId:a.id,assetName:a.name,assetQR:a.qr,userId:u.id,userName:u.name,type:txType,qty,note});
-  closeTx();
-  closeDetail();
-  const msgs={income:'✅ Орлого бүртгэгдлээ',expense:'✅ Зарлага бүртгэгдлээ',check:'✅ QR шалгалт бүртгэгдлээ'};
-  showToast(msgs[txType]);
+  addTx({assetId:a.id,assetName:a.name,assetQR:a.qr,userId:u.id,userName:u.name,type:'check',qty:0,note});
+  if(typeof pushToCloud==='function')pushToCloud('transactions',get(KEYS.T));
+  closeTx();closeDetail();
+  showToast('✅ QR шалгалт бүртгэгдлээ');
   renderHome();
-  if(curTab==='assets')renderAssets();
 }
 
 // ── TOAST ──
