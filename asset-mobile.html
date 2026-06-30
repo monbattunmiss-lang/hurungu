@@ -999,6 +999,7 @@ function submitIncome(){
   closeIncome();
   showToast('✅ '+name+' бүртгэгдлээ! QR: '+qr);
   renderHome();if(curTab==='assets')renderAssets();
+  setTimeout(()=>{if(confirm('Орлогын баримт хэвлэх үү?'))printReceipt('income',newId,qty,document.getElementById('inc-note')?document.getElementById('inc-note').value:'');},400);
 }
 
 // ── ЗАРЛАГА MODAL ──
@@ -1065,9 +1066,11 @@ function submitExpense(){
   const u=currentUser();
   addTx({assetId:a.id,assetName:a.name,assetQR:a.qr,userId:u.id,userName:u.name,type:'expense',qty,note});
   if(typeof pushToCloud==='function'){pushToCloud('assets',get(KEYS.A));pushToCloud('transactions',get(KEYS.T));}
+  const expAssetSnap=a.id,expQtySnap=qty,expNoteSnap=note;
   closeExpense();closeDetail();
   showToast('✅ Зарлага бүртгэгдлээ');
   renderHome();if(curTab==='assets')renderAssets();
+  setTimeout(()=>{if(confirm('Зарлагын баримт хэвлэх үү?'))printReceipt('expense',expAssetSnap,expQtySnap,expNoteSnap);},400);
 }
 
 // ── QR ШАЛГАЛТ ──
@@ -1190,6 +1193,60 @@ function saveNewAsset(){
   showToast('✅ '+name+' бүртгэгдлээ! QR: '+qr);
   renderHome();
   renderAssets();
+}
+
+
+// ── ПАДААН ХЭВЛЭХ ──
+function genReceiptHTML(type,asset,qty,note,date){
+  const u=currentUser();
+  const total=(asset.price||0)*qty;
+  const today=new Date(date||Date.now());
+  const dateStr=today.getFullYear()+' оны '+(today.getMonth()+1)+' сар '+today.getDate()+' өдөр';
+  const title=type==='income'?'ОРЛОГЫН БАРИМТ':'ЗАРЛАГЫН БАРИМТ';
+  const formCode=type==='income'?'НХМЯагт БМ-2':'НХМЯагт БМ-2';
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+  <style>
+    body{font-family:'Times New Roman',serif;font-size:13px;padding:30px;max-width:800px;margin:0 auto}
+    .header{display:flex;justify-content:space-between;font-size:11px;margin-bottom:20px}
+    .title{text-align:center;font-size:16px;font-weight:bold;margin:20px 0;letter-spacing:2px}
+    .org-row{display:flex;justify-content:space-between;margin-bottom:5px}
+    .org-line{border-bottom:1px dotted #000;flex:1;margin:0 10px;min-height:18px}
+    .org-label{text-align:center;font-size:11px;margin-bottom:15px}
+    .date{margin:15px 0}
+    table{width:100%;border-collapse:collapse;margin:15px 0}
+    th,td{border:1px solid #000;padding:6px 8px;text-align:center;font-size:12px}
+    th{background:#f0f0f0;font-weight:bold}
+    .footer-row{margin-top:25px;line-height:2.2}
+    .dots{border-bottom:1px dotted #000;display:inline-block;min-width:200px}
+    @media print{body{padding:10px}}
+  </style></head><body>
+  <div class="header"><span>${formCode}</span><span>Сангийн сайдын 2017 оны 12-р сарын<br>5 өдрийн 347 тоот тушаалын хавсралт</span></div>
+  <div class="title">${title} № _____</div>
+  <div class="org-row"><span class="dots">&nbsp;</span><span class="dots">&nbsp;</span></div>
+  <div class="org-row"><span style="flex:1;text-align:center;font-size:11px">(Байгууллагын нэр)</span><span style="flex:1;text-align:center;font-size:11px">(Хүлээн авагчийн нэр)</span></div>
+  <div class="date">${dateStr}</div>
+  <table>
+    <tr><th rowspan="2">№</th><th rowspan="2">Материал үнэт зүйлийн нэр, зэрэг, дугаар</th><th rowspan="2">Код</th><th rowspan="2">Хэмжих нэгж</th><th rowspan="2">Нэг бүрийн үнэ</th><th colspan="2">Хүлээн авсан</th></tr>
+    <tr><th>Тоо</th><th>Дүн</th></tr>
+    <tr><td>1</td><td style="text-align:left">${asset.name}</td><td>${asset.qr}</td><td>${asset.unit||'ш'}</td><td>${(asset.price||0).toLocaleString('mn-MN')}.00</td><td>${qty}</td><td>${total.toLocaleString('mn-MN')}.00</td></tr>
+    <tr><td colspan="6" style="text-align:right;font-weight:bold">Дүн</td><td style="font-weight:bold">${total.toLocaleString('mn-MN')}.00</td></tr>
+  </table>
+  ${note?`<div style="margin:10px 0;font-size:12px">Тэмдэглэл: ${note}</div>`:''}
+  <div class="footer-row">
+    Хүлээн авсан : <span class="dots">&nbsp;</span> / <span class="dots">&nbsp;</span><br>
+    (Тэмдэг) &nbsp;&nbsp;&nbsp; Хүлээлгэн өгсөн : <span class="dots">&nbsp;</span> / <span class="dots">${u.name}</span><br>
+    Шалгасан нярав : <span class="dots">&nbsp;</span> / <span class="dots">&nbsp;</span>
+  </div>
+  </body></html>`;
+}
+function printReceipt(type,assetId,qty,note){
+  const a=get(KEYS.A).find(x=>x.id===assetId);
+  if(!a)return;
+  const html=genReceiptHTML(type,a,qty,note,Date.now());
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),300);
 }
 
 // ── FIREBASE SYNC ──
