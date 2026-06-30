@@ -1833,12 +1833,24 @@ function printTxReceipt(txId){
   const tx=get(KEYS.T).find(t=>t.id===txId);
   if(!tx||tx.type==='check'){alert('Энэ гүйлгээ хэвлэх боломжгүй');return;}
   const a=get(KEYS.A).find(x=>x.id===tx.assetId);
-  if(!a)return;
+  if(!a){alert('Хөрөнгийн мэдээлэл олдсонгүй');return;}
   const usr=get(KEYS.U).find(u=>u.id===tx.userId);
   const html=genReceiptHTMLPC(tx.type,a,tx.qty,tx.note,usr?usr.name:tx.userName,tx.createdAt);
-  const w=window.open('','_blank');
-  w.document.write(html);w.document.close();
-  setTimeout(()=>w.print(),300);
+
+  const old=document.getElementById('printFrame');
+  if(old)old.remove();
+  const iframe=document.createElement('iframe');
+  iframe.id='printFrame';
+  iframe.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  document.body.appendChild(iframe);
+  const doc=iframe.contentWindow.document;
+  doc.open();doc.write(html);doc.close();
+  iframe.onload=()=>{
+    setTimeout(()=>{
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    },200);
+  };
 }
 
 // ════════════════════════════════════════════════
