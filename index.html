@@ -982,7 +982,7 @@ const getAssets=(f={})=>{
   if(f.q){const q=f.q.toLowerCase();l=l.filter(a=>a.name.toLowerCase().includes(q)||a.qr.toLowerCase().includes(q)||(a.category||'').toLowerCase().includes(q));}
   return l;
 };
-const saveAssets=l=>localStorage.setItem(KEYS.ASSETS,JSON.stringify(l));
+const saveAssets=l=>{localStorage.setItem(KEYS.ASSETS,JSON.stringify(l));if(typeof pushToCloud==='function')pushToCloud(KEYS.ASSETS,l);};
 const upsertAsset=a=>{const l=JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');const i=l.findIndex(x=>x.id===a.id);if(i>=0)l[i]=a;else l.push(a);saveAssets(l);};
 const getTx=(f={})=>{
   let l=JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
@@ -1418,7 +1418,8 @@ function saveAsset(){
   if(!name){alert('Нэр оруулна уу');return;}
   const assets=JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');
   const existing=id?assets.find(a=>a.id===id):null;
-  const newIdx=assets.length+1;
+  const maxNum=assets.reduce((m,a)=>{const n=parseInt((a.qr||'').replace('QR-',''))||0;return n>m?n:m;},0);
+  const newIdx=maxNum+1;
 
   // Дансны дугаар — төрлийг автоматаар тодорхойлно
   const accountNo=(document.getElementById('af-accountno')?.value||'').trim()||existing?.accountNo||'';
@@ -1429,7 +1430,7 @@ function saveAsset(){
   const userId=null;
 
   const asset={
-    id:existing?existing.id:'a'+String(newIdx).padStart(5,'0'),
+    id:existing?existing.id:'a'+Date.now()+Math.floor(Math.random()*1000),
     qr:existing?existing.qr:'QR-'+String(newIdx).padStart(5,'0'),
     name,
     category:document.getElementById('af-cat').value||'—',
@@ -1534,7 +1535,7 @@ function addTransaction(){
   const type=document.getElementById('txType').value;
   const qty=parseInt(document.getElementById('txQty').value)||1;
   const note=document.getElementById('txNote').value;
-  addTxDB({assetId:selectedTxAsset.id,assetName:selectedTxAsset.name,assetQR:selectedTxAsset.qr,userId:u.id,userName:u.name,type,qty,note});
+  addTxAndSync({assetId:selectedTxAsset.id,assetName:selectedTxAsset.name,assetQR:selectedTxAsset.qr,userId:u.id,userName:u.name,type,qty,note});
   selectedTxAsset=null;
   document.getElementById('txSearch').value='';
   document.getElementById('txAssetResult').innerHTML='';
@@ -2272,34 +2273,23 @@ function pushToCloud(key, data){
   fbDB.ref(refName).set(obj).catch(e => console.log('Sync алдаа:', e));
 }
 
-// Override saveAssets - cloud-д ч хадгална
-const _origSaveAssets = saveAssets;
-window.saveAssets = function(l){
-  localStorage.setItem(KEYS.ASSETS, JSON.stringify(l));
-  pushToCloud(KEYS.ASSETS, l);
-};
+// saveAssets аль хэдийн cloud руу push хийдэг (дээрх тодорхойлолтод)
 
-// Override saveUsers
+// saveUsers-г cloud-той sync хийдэг болгох
 window.saveUsers = function(u){
   localStorage.setItem(KEYS.USERS, JSON.stringify(u));
   pushToCloud(KEYS.USERS, u);
 };
 
-// Override addTxDB - гүйлгээ cloud-д ч хадгална
-const _origAddTx = addTxDB;
-window.addTxDB = function(tx){
-  const result = _origAddTx(tx);
+// addTxDB дуудсаны дараа cloud руу push хийх (assets+tx)
+function addTxAndSync(tx){
+  const result = addTxDB(tx);
   const txs = JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
-  if(fbDB){
-    const obj = {};
-    txs.forEach(t => { obj[t.id] = t; });
-    fbDB.ref('transactions').set(obj).catch(e=>console.log(e));
-    // Assets ч шинэчлэх
-    const assets = JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');
-    pushToCloud(KEYS.ASSETS, assets);
-  }
+  const assets = JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');
+  pushToCloud(KEYS.TX, txs);
+  pushToCloud(KEYS.ASSETS, assets);
   return result;
-};
+}
 
 // Cloud руу бүх өгөгдөл нэг удаа push хийх (анхны sync)
 function pushAllToCloud(){
