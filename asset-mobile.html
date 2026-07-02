@@ -650,11 +650,11 @@ function getTx(f={}){
   if(f.assetId)l=l.filter(t=>t.assetId===f.assetId);
   if(f.userId)l=l.filter(t=>t.userId===f.userId);
   if(f.today){const d=new Date().toDateString();l=l.filter(t=>new Date(t.createdAt).toDateString()===d);}
-  return l.sort((a,b)=>b.createdAt-a.createdAt);
+  return l.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
 }
 function addTx(tx){
   const l=get(KEYS.T);
-  tx.id='tx'+Date.now();tx.createdAt=Date.now();
+  tx.id='tx'+Date.now();tx.createdAt=new Date().toISOString();
   l.unshift(tx);save(KEYS.T,l);
   // Update asset qty
   const assets=get(KEYS.A);
@@ -664,6 +664,13 @@ function addTx(tx){
     else if(tx.type==='expense')assets[ai].qty=Math.max(0,assets[ai].qty-tx.qty);
     assets[ai].lastChecked=Date.now();
     save(KEYS.A,assets);
+  }
+  // Firebase руу шууд push хийх
+  if(typeof fbDB!=='undefined'&&fbDB){
+    const txObj={};l.forEach(t=>{txObj[t.id]=t;});
+    fbDB.ref('transactions').set(txObj).catch(e=>console.log('TX sync err:',e));
+    const aObj={};assets.forEach(a=>{aObj[a.id]=a;});
+    fbDB.ref('assets').set(aObj).catch(e=>console.log('Asset sync err:',e));
   }
 }
 function getImgUrl(qr,assetId){
@@ -987,7 +994,7 @@ function submitIncome(){
     naraaType:u.naraaType||'',naraaName:u.name||'',userId:u.id,
     status:document.getElementById('inc-status').value||'Сайн',
     accountNo,note:document.getElementById('inc-note').value.trim(),
-    createdAt:Date.now(),lastChecked:Date.now()
+    createdAt:Date.now(),lastChecked:new Date().toISOString()
   };
   assets.push(asset);
   save(KEYS.A,assets);
@@ -1323,14 +1330,7 @@ function pushToCloud(ref,arr){
   fbDB.ref(ref).set(obj).catch(e=>console.log(e));
 }
 
-// Override addTx to also push to Firebase
-const _origAddTx=addTx;
-window.addTx=function(tx){
-  _origAddTx(tx);
-  const txs=get(KEYS.T);
-  pushToCloud('transactions',txs);
-  pushToCloud('assets',get(KEYS.A));
-};
+// addTx аль хэдийн Firebase руу push хийдэг болсон
 
 // ── INIT ──
 initDB();
