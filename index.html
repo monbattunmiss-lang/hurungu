@@ -1030,8 +1030,15 @@ const upsertAsset=a=>{const l=JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]'
 const getTx=(f={})=>{
   let l=JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
   if(f.userId)l=l.filter(t=>t.userId===f.userId);
-  if(f.date)l=l.filter(t=>t.createdAt.startsWith(f.date));
-  return l.sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+  if(f.date)l=l.filter(t=>{
+    const d=new Date(typeof t.createdAt==='number'?t.createdAt:t.createdAt);
+    return d.toISOString().startsWith(f.date);
+  });
+  return l.sort((a,b)=>{
+    const da=new Date(a.createdAt).getTime()||Number(a.createdAt)||0;
+    const db=new Date(b.createdAt).getTime()||Number(b.createdAt)||0;
+    return db-da;
+  });
 };
 const addTxDB=tx=>{
   const l=JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
@@ -1596,7 +1603,7 @@ function renderTodayTx(){
   el.innerHTML=txs.length===0?'<div style="color:var(--hint);font-size:13px;padding:12px">Өнөөдөр гүйлгээ байхгүй</div>':
     txs.slice(0,10).map(t=>`<div class="tx-row">
       <div class="tx-icon ${t.type==='income'?'tx-in':t.type==='expense'?'tx-out':'tx-check'}"><span style="font-size:14px">${{income:'📥',expense:'📤',check:'✅',transfer:'🔄'}[t.type]}</span></div>
-      <div class="tx-info"><div class="tx-name">${t.assetName||'—'}</div><div class="tx-time">${new Date(t.createdAt).toLocaleTimeString('mn-MN',{hour:'2-digit',minute:'2-digit'})} · ${t.userName}</div></div>
+      <div class="tx-info"><div class="tx-name">${t.assetName||'—'}</div><div class="tx-time">${new Date(typeof t.createdAt==='number'?t.createdAt:t.createdAt).toLocaleTimeString('mn-MN',{hour:'2-digit',minute:'2-digit'})} · ${t.userName}</div></div>
       <div class="tx-qty ${t.type==='income'?'in':'out'}">${t.type==='check'?'—':(t.type==='income'?'+':'-')+t.qty}</div>
     </div>`).join('');
 }
@@ -2358,9 +2365,15 @@ function listenCloudChanges(){
   fbDB.ref('transactions').on('value', snap => {
     const data = snap.val();
     if(data){
-      const arr = Object.values(data).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+      const arr = Object.values(data).sort((a,b)=>{
+        const da=new Date(a.createdAt).getTime()||Number(a.createdAt)||0;
+        const db=new Date(b.createdAt).getTime()||Number(b.createdAt)||0;
+        return db-da;
+      });
       localStorage.setItem(KEYS.TX, JSON.stringify(arr));
       renderDashboard();
+      if(typeof renderTodayTx==='function')renderTodayTx();
+      if(typeof renderTxHistory==='function')renderTxHistory();
     }
   });
   fbDB.ref('users').on('value', snap => {

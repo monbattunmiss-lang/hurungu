@@ -994,7 +994,7 @@ function submitIncome(){
     naraaType:u.naraaType||'',naraaName:u.name||'',userId:u.id,
     status:document.getElementById('inc-status').value||'Сайн',
     accountNo,note:document.getElementById('inc-note').value.trim(),
-    createdAt:Date.now(),lastChecked:new Date().toISOString()
+    createdAt:new Date().toISOString(),lastChecked:new Date().toISOString()
   };
   assets.push(asset);
   save(KEYS.A,assets);
@@ -1178,7 +1178,7 @@ function saveNewAsset(){
     status:document.getElementById('na-status').value||'Сайн',
     accountNo:accountNo,
     note:document.getElementById('na-note').value.trim(),
-    createdAt:Date.now(),
+    createdAt:new Date().toISOString(),
     lastChecked:Date.now()
   };
   assets.push(asset);
@@ -1300,7 +1300,7 @@ function pullFromCloud(){
   });
   fbDB.ref('transactions').once('value').then(snap=>{
     const d=snap.val();
-    if(d){const arr=Object.values(d).sort((a,b)=>b.createdAt-a.createdAt);save(KEYS.T,arr);renderHome();}
+    if(d){const arr=Object.values(d).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));save(KEYS.T,arr);renderHome();}
   });
   fbDB.ref('users').once('value').then(snap=>{
     const d=snap.val();
