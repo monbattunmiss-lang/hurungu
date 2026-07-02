@@ -1208,8 +1208,8 @@ function populateSelects(){
   const whs=getWH();
   const naraaUsers=getUsers().filter(u=>u.role==='naraa'&&u.active);
 
-  // Агуулах dropdown (хэрэглэгч хуудсанд)
-  ['af-warehouse','uf-warehouse'].forEach(id=>{
+  // Агуулах dropdown (хэрэглэгч хуудсанд + тайланд)
+  ['af-warehouse','uf-warehouse','invWarehouse'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
     const hasEmpty=el.querySelector('option[value=""]');
