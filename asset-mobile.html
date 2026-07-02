@@ -1316,11 +1316,15 @@ function listenCloud(){
   });
   fbDB.ref('transactions').on('value',snap=>{
     const d=snap.val();
-    if(d){const arr=Object.values(d).sort((a,b)=>b.createdAt-a.createdAt);save(KEYS.T,arr);renderHome();}
+    if(d){const arr=Object.values(d).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));save(KEYS.T,arr);renderHome();}
   });
   fbDB.ref('users').on('value',snap=>{
     const d=snap.val();
     if(d){save(KEYS.U,Object.values(d));}
+  });
+  fbDB.ref('warehouses').on('value',snap=>{
+    const d=snap.val();
+    if(d){save(KEYS.W,Object.values(d));}
   });
 }
 

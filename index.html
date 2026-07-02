@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="mn">
 <head>
 <meta charset="UTF-8">
@@ -673,6 +673,26 @@ tr:hover td{background:#FAFBFC}
             <tbody id="usersTableBody"></tbody>
           </table>
         </div>
+
+        <!-- АГУУЛАХ УДИРДЛАГА -->
+        <div style="margin-top:28px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div>
+              <div class="page-title" style="margin:0;font-size:17px">Агуулах удирдлага</div>
+              <div class="page-sub" style="margin:4px 0 0">Агуулах нэмэх, засах, устгах</div>
+            </div>
+            <button class="btn btn-primary" onclick="openWHModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Агуулах нэмэх
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>№</th><th>Агуулахын нэр</th><th>Байршил</th><th>Хөрөнгийн тоо</th><th>Нярав</th><th>Үйлдэл</th></tr></thead>
+              <tbody id="whTableBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
     </div><!-- /main -->
@@ -821,6 +841,29 @@ tr:hover td{background:#FAFBFC}
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('userModal')">Цуцлах</button>
       <button class="btn btn-primary" id="userModalSaveBtn" onclick="saveUser()">Нэмэх</button>
+    </div>
+  </div>
+</div>
+
+<!-- Агуулах Modal -->
+<div class="modal-overlay" id="whModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title" id="whModalTitle">Агуулах нэмэх</div>
+      <button class="modal-close" onclick="closeModal('whModal')">✕</button>
+    </div>
+    <input type="hidden" id="wh-id">
+    <div class="form-group">
+      <label class="form-label">Агуулахын нэр *</label>
+      <input class="form-input" id="wh-name" placeholder="Жишээ: 1-р агуулах">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Байршил</label>
+      <input class="form-input" id="wh-location" placeholder="Жишээ: А байр, 2-р давхар">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('whModal')">Цуцлах</button>
+      <button class="btn btn-primary" onclick="saveWH()">Хадгалах</button>
     </div>
   </div>
 </div>
@@ -1996,6 +2039,78 @@ function renderUsers(){
       </div></td>
     </tr>`;
   }).join('');
+  renderWHTable();
+}
+
+// ── АГУУЛАХ УДИРДЛАГА ──
+function renderWHTable(){
+  const whs=getWH();
+  const assets=getAssets();
+  const users=getUsers();
+  const el=document.getElementById('whTableBody');
+  if(!el)return;
+  el.innerHTML=whs.map((w,i)=>{
+    const cnt=assets.filter(a=>a.warehouseId===w.id).length;
+    const naraa=users.filter(u=>u.warehouseId===w.id&&u.role==='naraa').map(u=>u.name).join(', ')||'—';
+    return`<tr>
+      <td>${i+1}</td>
+      <td><strong>${w.name}</strong></td>
+      <td>${w.location||'—'}</td>
+      <td><span class="badge b-info">${cnt} хөрөнгө</span></td>
+      <td style="font-size:12px">${naraa}</td>
+      <td><div class="table-actions">
+        <button class="btn btn-sm btn-primary" onclick="openWHModal('${w.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Засах
+        </button>
+        <button class="btn btn-sm" style="color:var(--red)" onclick="deleteWH('${w.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          Устгах
+        </button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function openWHModal(id){
+  const whs=getWH();
+  const wh=id?whs.find(w=>w.id===id):null;
+  document.getElementById('wh-id').value=wh?wh.id:'';
+  document.getElementById('wh-name').value=wh?wh.name:'';
+  document.getElementById('wh-location').value=wh?wh.location||'':'';
+  document.getElementById('whModalTitle').textContent=wh?'Агуулах засах':'Агуулах нэмэх';
+  openModal('whModal');
+}
+
+function saveWH(){
+  const name=document.getElementById('wh-name').value.trim();
+  if(!name){alert('Агуулахын нэр оруулна уу');return;}
+  const id=document.getElementById('wh-id').value;
+  const location=document.getElementById('wh-location').value.trim();
+  const whs=getWH();
+  if(id){
+    const i=whs.findIndex(w=>w.id===id);
+    if(i>=0){whs[i].name=name;whs[i].location=location;}
+  } else {
+    whs.push({id:'w'+Date.now(),name,location});
+  }
+  localStorage.setItem(KEYS.WH,JSON.stringify(whs));
+  if(typeof pushToCloud==='function')pushToCloud(KEYS.WH,whs);
+  closeModal('whModal');
+  populateSelects();
+  renderWHTable();
+}
+
+function deleteWH(id){
+  const assets=getAssets();
+  const cnt=assets.filter(a=>a.warehouseId===id).length;
+  if(cnt>0){alert(`Энэ агуулахад ${cnt} хөрөнгө бүртгэлтэй байна.\nЭхлээд хөрөнгийг өөр агуулах руу шилжүүлнэ үү.`);return;}
+  if(!confirm('Агуулах устгах уу?'))return;
+  const whs=getWH().filter(w=>w.id!==id);
+  localStorage.setItem(KEYS.WH,JSON.stringify(whs));
+  if(typeof pushToCloud==='function')pushToCloud(KEYS.WH,whs);
+  populateSelects();
+  renderWHTable();
 }
 
 function toggleNaraaTypeField(){
@@ -2264,6 +2379,7 @@ function pushToCloud(key, data){
     [KEYS.ASSETS]: 'assets',
     [KEYS.TX]: 'transactions',
     [KEYS.USERS]: 'users',
+    [KEYS.WH]: 'warehouses',
   };
   const refName = refMap[key];
   if(!refName) return;
