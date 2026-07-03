@@ -1901,15 +1901,14 @@ function printTxReceipt(txId){
   const allTx=JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
   const tx=allTx.find(t=>t.id===txId);
   if(!tx||tx.type==='check'){alert('Энэ гүйлгээ хэвлэх боломжгүй');return;}
-  const assets=getAssets();
+  const assets=JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');
   const a=assets.find(x=>x.id===tx.assetId);
   if(!a){alert('Хөрөнгийн мэдээлэл олдсонгүй');return;}
-  const users=getUsers();
+  const users=JSON.parse(localStorage.getItem(KEYS.USERS)||'[]');
   const usr=users.find(u=>u.id===tx.userId);
   const html=genReceiptHTMLPC(tx.type,a,tx.qty,tx.note,usr?usr.name:tx.userName,tx.createdAt);
 
-  // Хэвлэх modal
-  const old=document.getElementById('printModal');if(old)old.remove();
+  const prevModal=document.getElementById('printModal');if(prevModal)prevModal.remove();
   const modal=document.createElement('div');
   modal.id='printModal';
   modal.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;justify-content:center';
