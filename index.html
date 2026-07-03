@@ -2397,6 +2397,14 @@ function pullFromCloud(){
       populateSelects();
     }
   });
+  fbDB.ref('warehouses').once('value').then(snap => {
+    const data = snap.val();
+    if(data){
+      const arr = Object.values(data);
+      localStorage.setItem(KEYS.WH, JSON.stringify(arr));
+      populateSelects();
+    }
+  });
 }
 
 // Real-time сонсох
@@ -2428,6 +2436,13 @@ function listenCloudChanges(){
     const data = snap.val();
     if(data){
       localStorage.setItem(KEYS.USERS, JSON.stringify(Object.values(data)));
+      populateSelects();
+    }
+  });
+  fbDB.ref('warehouses').on('value', snap => {
+    const data = snap.val();
+    if(data){
+      localStorage.setItem(KEYS.WH, JSON.stringify(Object.values(data)));
       populateSelects();
     }
   });
