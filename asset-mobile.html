@@ -184,6 +184,7 @@ html,body{height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSys
 #toast{position:fixed;bottom:calc(80px + var(--safe-bot) + 10px);left:50%;transform:translateX(-50%) translateY(20px);background:#323232;color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;opacity:0;transition:all .25s;z-index:999;white-space:nowrap;pointer-events:none}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
 </head>
 <body>
 
@@ -302,6 +303,7 @@ html,body{height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSys
       <div class="scan-container">
         <div class="scan-box" id="scanBox">
           <video id="scanVideo" autoplay muted playsinline></video>
+          <canvas id="scanCanvas" style="display:none"></canvas>
           <div class="scan-corner tl"></div>
           <div class="scan-corner tr"></div>
           <div class="scan-corner bl"></div>
@@ -650,11 +652,11 @@ function getTx(f={}){
   if(f.assetId)l=l.filter(t=>t.assetId===f.assetId);
   if(f.userId)l=l.filter(t=>t.userId===f.userId);
   if(f.today){const d=new Date().toDateString();l=l.filter(t=>new Date(t.createdAt).toDateString()===d);}
-  return l.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  return l.sort((a,b)=>b.createdAt-a.createdAt);
 }
 function addTx(tx){
   const l=get(KEYS.T);
-  tx.id='tx'+Date.now();tx.createdAt=new Date().toISOString();
+  tx.id='tx'+Date.now();tx.createdAt=Date.now();
   l.unshift(tx);save(KEYS.T,l);
   // Update asset qty
   const assets=get(KEYS.A);
@@ -664,13 +666,6 @@ function addTx(tx){
     else if(tx.type==='expense')assets[ai].qty=Math.max(0,assets[ai].qty-tx.qty);
     assets[ai].lastChecked=Date.now();
     save(KEYS.A,assets);
-  }
-  // Firebase руу шууд push хийх
-  if(typeof fbDB!=='undefined'&&fbDB){
-    const txObj={};l.forEach(t=>{txObj[t.id]=t;});
-    fbDB.ref('transactions').set(txObj).catch(e=>console.log('TX sync err:',e));
-    const aObj={};assets.forEach(a=>{aObj[a.id]=a;});
-    fbDB.ref('assets').set(aObj).catch(e=>console.log('Asset sync err:',e));
   }
 }
 function getImgUrl(qr,assetId){
@@ -893,13 +888,23 @@ function initScan(){
     .catch(()=>{document.getElementById('scanResult').innerHTML='<div class="empty"><p>Камерт зөвшөөрөл өгнө үү</p></div>';});
 }
 function startDecode(){
-  if(!window.BarcodeDetector){scanTimer=null;return;}
-  const bd=new BarcodeDetector({formats:['qr_code']});
   const v=document.getElementById('scanVideo');
-  scanTimer=setInterval(async()=>{
-    if(v.readyState<2)return;
-    try{const r=await bd.detect(v);if(r.length){handleScan(r[0].rawValue);}}catch{}
-  },500);
+  const canvas=document.getElementById('scanCanvas');
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  if(typeof jsQR==='undefined'){
+    document.getElementById('scanResult').innerHTML='<div class="empty"><p>QR унших сан ачааллагдсангүй. Интернэт холболтоо шалгаад хуудсыг дахин ачаална уу.</p></div>';
+    return;
+  }
+  scanTimer=setInterval(()=>{
+    if(v.readyState!==v.HAVE_ENOUGH_DATA)return;
+    canvas.width=v.videoWidth;
+    canvas.height=v.videoHeight;
+    ctx.drawImage(v,0,0,canvas.width,canvas.height);
+    let imageData;
+    try{imageData=ctx.getImageData(0,0,canvas.width,canvas.height);}catch{return;}
+    const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:'dontInvert'});
+    if(code&&code.data){handleScan(code.data);}
+  },300);
 }
 function handleScan(val){
   clearInterval(scanTimer);
@@ -994,7 +999,7 @@ function submitIncome(){
     naraaType:u.naraaType||'',naraaName:u.name||'',userId:u.id,
     status:document.getElementById('inc-status').value||'Сайн',
     accountNo,note:document.getElementById('inc-note').value.trim(),
-    createdAt:new Date().toISOString(),lastChecked:new Date().toISOString()
+    createdAt:Date.now(),lastChecked:Date.now()
   };
   assets.push(asset);
   save(KEYS.A,assets);
@@ -1178,7 +1183,7 @@ function saveNewAsset(){
     status:document.getElementById('na-status').value||'Сайн',
     accountNo:accountNo,
     note:document.getElementById('na-note').value.trim(),
-    createdAt:new Date().toISOString(),
+    createdAt:Date.now(),
     lastChecked:Date.now()
   };
   assets.push(asset);
@@ -1300,7 +1305,7 @@ function pullFromCloud(){
   });
   fbDB.ref('transactions').once('value').then(snap=>{
     const d=snap.val();
-    if(d){const arr=Object.values(d).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));save(KEYS.T,arr);renderHome();}
+    if(d){const arr=Object.values(d).sort((a,b)=>b.createdAt-a.createdAt);save(KEYS.T,arr);renderHome();}
   });
   fbDB.ref('users').once('value').then(snap=>{
     const d=snap.val();
@@ -1316,15 +1321,11 @@ function listenCloud(){
   });
   fbDB.ref('transactions').on('value',snap=>{
     const d=snap.val();
-    if(d){const arr=Object.values(d).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));save(KEYS.T,arr);renderHome();}
+    if(d){const arr=Object.values(d).sort((a,b)=>b.createdAt-a.createdAt);save(KEYS.T,arr);renderHome();}
   });
   fbDB.ref('users').on('value',snap=>{
     const d=snap.val();
     if(d){save(KEYS.U,Object.values(d));}
-  });
-  fbDB.ref('warehouses').on('value',snap=>{
-    const d=snap.val();
-    if(d){save(KEYS.W,Object.values(d));}
   });
 }
 
@@ -1334,7 +1335,14 @@ function pushToCloud(ref,arr){
   fbDB.ref(ref).set(obj).catch(e=>console.log(e));
 }
 
-// addTx аль хэдийн Firebase руу push хийдэг болсон
+// Override addTx to also push to Firebase
+const _origAddTx=addTx;
+window.addTx=function(tx){
+  _origAddTx(tx);
+  const txs=get(KEYS.T);
+  pushToCloud('transactions',txs);
+  pushToCloud('assets',get(KEYS.A));
+};
 
 // ── INIT ──
 initDB();
