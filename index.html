@@ -792,9 +792,15 @@ tr:hover td{background:#FAFBFC}
     </div>
     <div class="form-group"><label class="form-label">Тэмдэглэл</label><textarea class="form-input" id="af-note" rows="2" placeholder="Нэмэлт мэдээлэл..."></textarea></div>
     <input type="hidden" id="af-id">
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('assetModal')">Цуцлах</button>
-      <button class="btn btn-primary" onclick="saveAsset()">Хадгалах</button>
+    <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center">
+      <button class="btn" id="af-delete-btn" style="display:none;background:var(--red-l);border-color:var(--red);color:var(--red);font-weight:600" onclick="deleteAssetConfirm()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        Устгах
+      </button>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="closeModal('assetModal')">Цуцлах</button>
+        <button class="btn btn-primary" onclick="saveAsset()">Хадгалах</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1518,6 +1524,8 @@ function openAssetModal(id){
   const whs=getWH();
   document.getElementById('af-warehouse').innerHTML='<option value="">— Сонгох —</option>'+whs.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');
   // af-user нь HTML-д статикаар бичигдсэн — дахин дүүргэхгүй
+  const u=currentUser();
+  const delBtn=document.getElementById('af-delete-btn');
 
   if(id){
     const a=getAssets().find(x=>x.id===id);
@@ -1541,6 +1549,7 @@ function openAssetModal(id){
     const acEl=document.getElementById('af-accountno');
     if(acEl) acEl.value=a.accountNo||'';
     document.getElementById('af-accountno').value=a.accountNo||'';
+    if(delBtn) delBtn.style.display=(u.role==='nyagtlan'||u.role==='darga')?'inline-flex':'none';
   } else {
     document.getElementById('assetModalTitle').textContent='Шинэ хөрөнгө нэмэх';
     document.getElementById('af-id').value='';
@@ -1550,8 +1559,26 @@ function openAssetModal(id){
     document.getElementById('af-price').value='0';
     document.getElementById('af-status').value='Сайн';
     document.getElementById('af-user').value='';
+    if(delBtn) delBtn.style.display='none';
   }
   openModal('assetModal');
+}
+function deleteAssetConfirm(){
+  const id=document.getElementById('af-id').value;
+  if(!id)return;
+  const assets=JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');
+  const a=assets.find(x=>x.id===id);
+  if(!a)return;
+  const relatedTx=JSON.parse(localStorage.getItem(KEYS.TX)||'[]').filter(t=>t.assetId===id);
+  const warnMsg=relatedTx.length>0
+    ? `"${a.name}" хөрөнгийг устгах уу?\n\n⚠️ Энэ хөрөнгөтэй холбоотой ${relatedTx.length} гүйлгээ (орлого/зарлага) бүртгэлд байгаа боловч тэдгээр нь өөрчлөгдөхгүй, зөвхөн хөрөнгийн бичлэг устгагдана.\n\nЭнэ үйлдлийг буцаах боломжгүй!`
+    : `"${a.name}" хөрөнгийг устгах уу?\n\nЭнэ үйлдлийг буцаах боломжгүй!`;
+  if(!confirm(warnMsg))return;
+  const updated=assets.filter(x=>x.id!==id);
+  saveAssets(updated);
+  closeModal('assetModal');
+  renderAssets();
+  renderDashboard();
 }
 function saveAsset(){
   const id=document.getElementById('af-id').value;
