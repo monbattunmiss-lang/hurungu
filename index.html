@@ -186,6 +186,14 @@ tr:hover td{background:#FAFBFC}
 .prog{height:5px;background:var(--bg);border-radius:3px;margin-top:4px}
 .prog-fill{height:5px;border-radius:3px;background:var(--blue)}
 
+/* Warehouse chip list (inventory report) */
+.wh-chip-row{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 18px}
+.wh-chip{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);cursor:pointer;font-size:13px;font-weight:500;transition:all .12s;user-select:none}
+.wh-chip:hover{border-color:var(--blue)}
+.wh-chip.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.wh-chip-count{font-size:11px;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--bg);color:var(--muted)}
+.wh-chip.active .wh-chip-count{background:rgba(255,255,255,.25);color:#fff}
+
 /* Scrollbar */
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -335,9 +343,15 @@ tr:hover td{background:#FAFBFC}
           </div>
         </div>
         <div class="card">
-          <div class="card-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Сүүлийн гүйлгээнүүд
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Сүүлийн гүйлгээнүүд
+            </span>
+            <div style="display:flex;gap:8px">
+              <button class="btn" id="txSelectModeBtn" onclick="toggleTxSelectMode()" style="font-size:12px;padding:6px 12px">☑️ Сонголт хийх</button>
+              <button class="btn btn-primary" id="txPrintSelectedBtn" onclick="printSelectedTx()" style="font-size:12px;padding:6px 12px;display:none">🖨️ Сонгосныг хэвлэх (<span id="txSelectedCount">0</span>)</button>
+            </div>
           </div>
           <div id="recentTxTable"></div>
         </div>
@@ -537,7 +551,7 @@ tr:hover td{background:#FAFBFC}
           <select class="form-input" id="reportUser" style="width:auto" onchange="renderDailyReport()">
             <option value="">Бүх нярав</option>
           </select>
-          <button class="btn btn-primary" onclick="printReport()">
+          <button class="btn btn-primary" onclick="printDailyReportBM9()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             Хэвлэх / PDF
           </button>
@@ -550,7 +564,7 @@ tr:hover td{background:#FAFBFC}
         <div class="page-title">Хөрөнгийн тооллогын тайлан</div>
         <div class="page-sub">Тасгийн бүх хөрөнгийн нэгдсэн тайлан</div>
         <div class="toolbar">
-          <select class="form-input" id="invWarehouse" style="width:auto" onchange="renderInventory()">
+          <select class="form-input" id="invWarehouse" style="display:none" onchange="renderInventory()">
             <option value="">Бүх агуулах</option>
           </select>
           <select class="form-input" id="invType" style="width:auto" onchange="renderInventory()">
@@ -563,6 +577,8 @@ tr:hover td{background:#FAFBFC}
             PDF татах
           </button>
         </div>
+        <div class="page-sub" style="margin:4px 0 6px;font-weight:600;font-size:12px;color:var(--muted)">Агуулах сонгох:</div>
+        <div class="wh-chip-row" id="invWhChips"></div>
         <div id="inventoryContent"></div>
       </div>
 
@@ -1286,6 +1302,54 @@ function navTo(page,btn){
 // ════════════════════════════════════════════════
 //  DASHBOARD
 // ════════════════════════════════════════════════
+let txSelectMode=false;
+let selectedTxIds=new Set();
+
+function toggleTxSelectMode(){
+  txSelectMode=!txSelectMode;
+  if(!txSelectMode) selectedTxIds.clear();
+  renderDashboard();
+}
+function toggleTxSelect(id){
+  if(selectedTxIds.has(id)) selectedTxIds.delete(id); else selectedTxIds.add(id);
+  renderDashboard();
+}
+function printSelectedTx(){
+  if(selectedTxIds.size===0){alert('Хэвлэх гүйлгээ сонгоно уу');return;}
+  const allTx=JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
+  const assets=getAssets();
+  const users=getUsers();
+  let body='';
+  let count=0;
+  selectedTxIds.forEach(id=>{
+    const tx=allTx.find(t=>t.id===id);
+    if(!tx||tx.type==='check'||tx.type==='transfer')return;
+    const a=assets.find(x=>x.id===tx.assetId);
+    if(!a)return;
+    const usr=users.find(u=>u.id===tx.userId);
+    if(count>0) body+='<div style="page-break-before:always"></div>';
+    body+=genReceiptHTMLPC(tx.type,a,tx.qty,tx.note,usr?usr.name:tx.userName,tx.createdAt);
+    count++;
+  });
+  if(count===0){alert('Сонгосон гүйлгээнүүд хэвлэх боломжгүй байна (зөвхөн орлого/зарлагын баримт хэвлэгдэнэ)');return;}
+
+  const old=document.getElementById('printModal');if(old)old.remove();
+  const modal=document.createElement('div');
+  modal.id='printModal';
+  modal.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;justify-content:center';
+  modal.innerHTML=`
+    <div style="background:#fff;width:780px;max-width:95vw;max-height:90vh;border-radius:12px;overflow:hidden;display:flex;flex-direction:column">
+      <div style="padding:12px 20px;background:#1565C0;color:#fff;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <span style="font-weight:600;font-size:15px">🖨️ Сонгосон баримтууд (${count})</span>
+        <div style="display:flex;gap:8px">
+          <button onclick="doPrint()" style="background:#fff;color:#1565C0;border:none;border-radius:8px;padding:7px 18px;font-weight:600;cursor:pointer;font-size:14px">🖨️ Хэвлэх</button>
+          <button onclick="document.getElementById('printModal').remove()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:14px">✕</button>
+        </div>
+      </div>
+      <div id="printContent" style="overflow-y:auto;padding:20px;flex:1">${body}</div>
+    </div>`;
+  document.body.appendChild(modal);
+}
 function renderDashboard(){
   const u=currentUser();
   const allAssets=getAssets();
@@ -1332,15 +1396,28 @@ function renderDashboard(){
 
   // Recent tx
   const recentTx=getTx().slice(0,8);
+  const tsmBtn=document.getElementById('txSelectModeBtn');
+  const tpsBtn=document.getElementById('txPrintSelectedBtn');
+  if(tsmBtn) tsmBtn.innerHTML = txSelectMode ? '✕ Цуцлах' : '☑️ Сонголт хийх';
+  if(tpsBtn){
+    tpsBtn.style.display = (txSelectMode && selectedTxIds.size>0) ? 'inline-flex' : 'none';
+    const cntEl=document.getElementById('txSelectedCount');
+    if(cntEl) cntEl.textContent=selectedTxIds.size;
+  }
   document.getElementById('recentTxTable').innerHTML=recentTx.length===0?'<div style="color:var(--hint);font-size:13px;padding:12px">Гүйлгээ байхгүй</div>':
-    `<div style="overflow-x:auto"><table><thead><tr><th>Цаг</th><th>Хөрөнгийн нэр</th><th>Үйлдэл</th><th>Тоо</th><th>Нярав</th></tr></thead><tbody>
-    ${recentTx.map(t=>`<tr>
+    `<div style="overflow-x:auto"><table><thead><tr>${txSelectMode?'<th style="width:26px"></th>':''}<th>Цаг</th><th>Хөрөнгийн нэр</th><th>Үйлдэл</th><th>Тоо</th><th>Нярав</th><th style="width:34px"></th></tr></thead><tbody>
+    ${recentTx.map(t=>{
+      const printable=t.type==='income'||t.type==='expense';
+      return `<tr>
+      ${txSelectMode?`<td><input type="checkbox" ${selectedTxIds.has(t.id)?'checked':''} onchange="toggleTxSelect('${t.id}')"></td>`:''}
       <td style="color:var(--muted)">${new Date(t.createdAt).toLocaleTimeString('mn-MN',{hour:'2-digit',minute:'2-digit'})}</td>
       <td>${t.assetName||'—'}</td>
       <td><span class="badge ${t.type==='income'?'b-ok':t.type==='expense'?'b-danger':t.type==='check'?'b-info':'b-gray'}">${{income:'📥 Орлого',expense:'📤 Зарлага',check:'✅ Шалгалт',transfer:'🔄 Шилжүүлэг'}[t.type]}</span></td>
       <td>${t.type==='check'?'—':(t.type==='income'?'+':'-')+t.qty}</td>
       <td>${t.userName||'—'}</td>
-    </tr>`).join('')}
+      <td>${printable?`<button onclick="printTxReceipt('${t.id}')" title="Баримт хэвлэх" style="background:none;border:none;cursor:pointer;font-size:15px;line-height:1">🖨️</button>`:''}</td>
+    </tr>`;
+    }).join('')}
     </tbody></table></div>`;
 
   // Warn badge
@@ -1752,15 +1829,162 @@ function renderDailyReport(){
   el.innerHTML=html;
 }
 
-// ════════════════════════════════════════════════
-//  INVENTORY REPORT
-// ════════════════════════════════════════════════
+// ── ӨДРИЙН ТАЙЛАН — БМ-9 "БАРАА МАТЕРИАЛЫН ТАЙЛАН" ХЭЛБЭРЭЭР ХЭВЛЭХ ──
+function printDailyReportBM9(){
+  const date=document.getElementById('reportDate').value||new Date().toISOString().split('T')[0];
+  const userId=document.getElementById('reportUser').value;
+  const u=currentUser();
+  const whs=getWH();
+
+  let reportUsers=getUsers().filter(x=>x.role==='naraa');
+  if(u.role==='naraa') reportUsers=[u];
+  else if(userId) reportUsers=reportUsers.filter(x=>x.id===userId);
+
+  const allAssets=getAssets();
+  const allTx=JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
+  const dateStr=new Date(date).toLocaleDateString('mn-MN',{year:'numeric',month:'long',day:'numeric'});
+  const isToday=date>=new Date().toISOString().split('T')[0];
+
+  let body=`<div style="text-align:center;margin-bottom:18px">
+    <div style="font-size:11px;line-height:1.5">НХМЯагт БМ-9 Сангийн сайдын 2017 оны 12-р сарын<br>5 өдрийн 347 тоот тушаалын хавсралт</div>
+    <div style="font-size:17px;font-weight:bold;margin-top:10px;letter-spacing:2px">БАРАА МАТЕРИАЛЫН ТАЙЛАН</div>
+    <div style="font-size:12px;margin-top:6px">${dateStr}</div>
+  </div>`;
+
+  let any=false;
+  reportUsers.forEach(ru=>{
+    const wh=whs.find(w=>w.id===ru.warehouseId);
+    const whAssets=allAssets.filter(a=>a.warehouseId===ru.warehouseId);
+    const dayTx=allTx.filter(t=>{
+      if(t.userId!==ru.id)return false;
+      const d=new Date(typeof t.createdAt==='number'?t.createdAt:t.createdAt);
+      return d.toISOString().startsWith(date);
+    });
+    const touchedIds=new Set(dayTx.map(t=>t.assetId));
+    const rows=whAssets.filter(a=>touchedIds.has(a.id));
+    if(rows.length===0)return;
+    any=true;
+
+    let totalSum=0;
+    const rowsHTML=rows.map((a,i)=>{
+      const assetAllTx=allTx.filter(t=>t.assetId===a.id);
+      let closing=a.qty;
+      if(!isToday){
+        const afterDay=assetAllTx.filter(t=>{
+          const d=new Date(typeof t.createdAt==='number'?t.createdAt:t.createdAt).toISOString().split('T')[0];
+          return d>date;
+        });
+        const netAfter=afterDay.reduce((s,t)=>s+(t.type==='income'?t.qty:t.type==='expense'?-t.qty:0),0);
+        closing=a.qty-netAfter;
+      }
+      const dayIncome=dayTx.filter(t=>t.assetId===a.id&&t.type==='income').reduce((s,t)=>s+t.qty,0);
+      const dayExpense=dayTx.filter(t=>t.assetId===a.id&&t.type==='expense').reduce((s,t)=>s+t.qty,0);
+      const opening=closing-dayIncome+dayExpense;
+      const total=(a.price||0)*closing;
+      totalSum+=total;
+      return `<tr>
+        <td style="border:1px solid #000;padding:4px;text-align:center">${i+1}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center"><code style="font-size:9px">${a.qr||'—'}</code></td>
+        <td style="border:1px solid #000;padding:4px;text-align:left">${a.name}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center">${a.unit||'ш'}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:right">${(a.price||0).toLocaleString()}.00</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center">${opening>0?opening:''}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center;color:#2e7d32">${dayIncome>0?dayIncome:''}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center;color:#b71c1c">${dayExpense>0?dayExpense:''}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center;font-weight:600">${closing}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:right">${total.toLocaleString()}.00</td>
+      </tr>`;
+    }).join('');
+
+    const accountNo=rows[0]?(rows[0].accountNo||'—'):'—';
+
+    body+=`<div style="margin-bottom:22px;page-break-inside:avoid">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+        <div>Дансны дугаар: <strong>${accountNo}</strong></div>
+        <div>Эд хариуцагч: <strong>${ru.naraaType||ru.name}</strong></div>
+      </div>
+      <div style="font-size:12px;font-weight:bold;margin-bottom:8px">Дансны нэр: ${wh?wh.name:'—'}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead>
+          <tr>
+            <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">№</th>
+            <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Код</th>
+            <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Материал үнэт зүйлийн нэр,<br>зэрэг, дугаар</th>
+            <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Хэмжих<br>нэгж</th>
+            <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Нэг бүрийн<br>өртөг</th>
+            <th colspan="4" style="border:1px solid #000;padding:4px;background:#f5f5f5">Тоо хэмжээ</th>
+            <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Мөнгөн<br>дүн</th>
+          </tr>
+          <tr>
+            <th style="border:1px solid #000;padding:4px;background:#f5f5f5">Эхний<br>үлдэгдэл</th>
+            <th style="border:1px solid #000;padding:4px;background:#f5f5f5">Орлого</th>
+            <th style="border:1px solid #000;padding:4px;background:#f5f5f5">Зарлага</th>
+            <th style="border:1px solid #000;padding:4px;background:#f5f5f5">Эцсийн<br>үлдэгдэл</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHTML}
+          <tr style="font-weight:700;background:#f5f5f5"><td colspan="9" style="border:1px solid #000;padding:4px;text-align:right">Дүн</td><td style="border:1px solid #000;padding:4px;text-align:right">${totalSum.toLocaleString()}.00</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;font-size:11px;line-height:2">
+        Эд хариуцагч ....................................................../${ru.name}/<br>
+        Хавсарсан баримтын тоо:&nbsp;&nbsp; Орлогын ${dayTx.filter(t=>t.type==='income').length} ширхэг &nbsp;&nbsp; Зарлагын ${dayTx.filter(t=>t.type==='expense').length} ширхэг<br>
+        Хянасан нягтлан бодогч ....................................................../
+      </div>
+    </div>`;
+  });
+
+  if(!any){alert('Энэ өдөр гүйлгээ бүртгэгдээгүй байна');return;}
+
+  const old=document.getElementById('printModal');if(old)old.remove();
+  const modal=document.createElement('div');
+  modal.id='printModal';
+  modal.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;justify-content:center';
+  modal.innerHTML=`
+    <div style="background:#fff;width:920px;max-width:96vw;max-height:90vh;border-radius:12px;overflow:hidden;display:flex;flex-direction:column">
+      <div style="padding:12px 20px;background:#1565C0;color:#fff;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <span style="font-weight:600;font-size:15px">📄 Бараа материалын тайлан (БМ-9)</span>
+        <div style="display:flex;gap:8px">
+          <button onclick="doPrint()" style="background:#fff;color:#1565C0;border:none;border-radius:8px;padding:7px 18px;font-weight:600;cursor:pointer;font-size:14px">🖨️ Хэвлэх</button>
+          <button onclick="document.getElementById('printModal').remove()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:14px">✕</button>
+        </div>
+      </div>
+      <div id="printContent" style="overflow-y:auto;padding:20px;flex:1;font-family:'Times New Roman',serif">${body}</div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+function renderInvWhChips(){
+  const whs=getWH();
+  const activeId=document.getElementById('invWarehouse').value;
+  const allAssets=getAssets();
+  let html=`<div class="wh-chip ${activeId===''?'active':''}" onclick="selectInvWarehouse('')">
+    <span>Бүх агуулах</span><span class="wh-chip-count">${allAssets.length}</span></div>`;
+  html+=whs.map(w=>{
+    const cnt=allAssets.filter(a=>a.warehouseId===w.id).length;
+    return `<div class="wh-chip ${activeId===w.id?'active':''}" onclick="selectInvWarehouse('${w.id}')">
+      <span>${w.name}</span><span class="wh-chip-count">${cnt}</span></div>`;
+  }).join('');
+  const noneCnt=allAssets.filter(a=>!a.warehouseId||!whs.find(w=>w.id===a.warehouseId)).length;
+  if(noneCnt>0){
+    html+=`<div class="wh-chip ${activeId==='none'?'active':''}" onclick="selectInvWarehouse('none')">
+      <span>Агуулах тодорхойгүй</span><span class="wh-chip-count">${noneCnt}</span></div>`;
+  }
+  document.getElementById('invWhChips').innerHTML=html;
+}
+function selectInvWarehouse(id){
+  document.getElementById('invWarehouse').value=id;
+  renderInventory();
+}
 function renderInventory(){
-  const wId=document.getElementById('invWarehouse').value;
+  renderInvWhChips();
+  const wIdRaw=document.getElementById('invWarehouse').value;
+  const wId=wIdRaw==='none'?'':wIdRaw;
   const type=document.getElementById('invType').value;
   const f={};if(wId)f.warehouseId=wId;if(type)f.type=type;
-  const assets=getAssets(f);
   const whs=getWH();const users=getUsers();
+  let assets=getAssets(f);
+  if(wIdRaw==='none') assets=assets.filter(a=>!a.warehouseId||!whs.find(w=>w.id===a.warehouseId));
   const allTx=get(KEYS.T);
   const totalVal=assets.reduce((s,a)=>s+(a.price||0)*a.qty,0);
 
@@ -1901,14 +2125,15 @@ function printTxReceipt(txId){
   const allTx=JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
   const tx=allTx.find(t=>t.id===txId);
   if(!tx||tx.type==='check'){alert('Энэ гүйлгээ хэвлэх боломжгүй');return;}
-  const assets=JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');
+  const assets=getAssets();
   const a=assets.find(x=>x.id===tx.assetId);
   if(!a){alert('Хөрөнгийн мэдээлэл олдсонгүй');return;}
-  const users=JSON.parse(localStorage.getItem(KEYS.USERS)||'[]');
+  const users=getUsers();
   const usr=users.find(u=>u.id===tx.userId);
   const html=genReceiptHTMLPC(tx.type,a,tx.qty,tx.note,usr?usr.name:tx.userName,tx.createdAt);
 
-  const prevModal=document.getElementById('printModal');if(prevModal)prevModal.remove();
+  // Хэвлэх modal
+  const old=document.getElementById('printModal');if(old)old.remove();
   const modal=document.createElement('div');
   modal.id='printModal';
   modal.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;justify-content:center';
@@ -2397,14 +2622,6 @@ function pullFromCloud(){
       populateSelects();
     }
   });
-  fbDB.ref('warehouses').once('value').then(snap => {
-    const data = snap.val();
-    if(data){
-      const arr = Object.values(data);
-      localStorage.setItem(KEYS.WH, JSON.stringify(arr));
-      populateSelects();
-    }
-  });
 }
 
 // Real-time сонсох
@@ -2436,13 +2653,6 @@ function listenCloudChanges(){
     const data = snap.val();
     if(data){
       localStorage.setItem(KEYS.USERS, JSON.stringify(Object.values(data)));
-      populateSelects();
-    }
-  });
-  fbDB.ref('warehouses').on('value', snap => {
-    const data = snap.val();
-    if(data){
-      localStorage.setItem(KEYS.WH, JSON.stringify(Object.values(data)));
       populateSelects();
     }
   });
