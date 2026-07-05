@@ -1985,7 +1985,7 @@ function renderInventory(){
   const whs=getWH();const users=getUsers();
   let assets=getAssets(f);
   if(wIdRaw==='none') assets=assets.filter(a=>!a.warehouseId||!whs.find(w=>w.id===a.warehouseId));
-  const allTx=get(KEYS.T);
+  const allTx=JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
   const totalVal=assets.reduce((s,a)=>s+(a.price||0)*a.qty,0);
 
   const byWH={};
