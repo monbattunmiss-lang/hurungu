@@ -546,8 +546,15 @@ tr:hover td{background:#FAFBFC}
       <div class="page" id="page-report-daily">
         <div class="page-title">Өдрийн тайлан</div>
         <div class="page-sub">Нярав бүрийн өдрийн ажлын тайлан</div>
-        <div class="toolbar">
-          <input class="form-input" type="date" id="reportDate" style="width:auto">
+        <div class="toolbar" style="align-items:flex-end;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <label style="font-size:11px;color:var(--muted)">Эхлэх огноо</label>
+            <input class="form-input" type="date" id="reportDateFrom" style="width:auto" onchange="onReportDateRangeChange()">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <label style="font-size:11px;color:var(--muted)">Дуусах огноо</label>
+            <input class="form-input" type="date" id="reportDateTo" style="width:auto" onchange="onReportDateRangeChange()">
+          </div>
           <select class="form-input" id="reportUser" style="width:auto" onchange="renderDailyReport()">
             <option value="">Бүх нярав</option>
           </select>
@@ -556,6 +563,7 @@ tr:hover td{background:#FAFBFC}
             Хэвлэх / PDF
           </button>
         </div>
+        <div id="reportRangeWarning" style="display:none;color:var(--red);font-size:12px;margin:6px 0 0"></div>
         <div id="dailyReportContent"></div>
       </div>
 
@@ -1056,6 +1064,12 @@ const getTx=(f={})=>{
     const d=new Date(typeof t.createdAt==='number'?t.createdAt:t.createdAt);
     return d.toISOString().startsWith(f.date);
   });
+  if(f.dateFrom||f.dateTo)l=l.filter(t=>{
+    const dISO=new Date(typeof t.createdAt==='number'?t.createdAt:t.createdAt).toISOString().split('T')[0];
+    if(f.dateFrom&&dISO<f.dateFrom)return false;
+    if(f.dateTo&&dISO>f.dateTo)return false;
+    return true;
+  });
   return l.sort((a,b)=>{
     const da=new Date(a.createdAt).getTime()||Number(a.createdAt)||0;
     const db=new Date(b.createdAt).getTime()||Number(b.createdAt)||0;
@@ -1279,8 +1293,10 @@ function populateSelects(){
   });
 
   const today=new Date().toISOString().split('T')[0];
-  const rd=document.getElementById('reportDate');
-  if(rd&&!rd.value)rd.value=today;
+  const rdf=document.getElementById('reportDateFrom');
+  const rdt=document.getElementById('reportDateTo');
+  if(rdf&&!rdf.value)rdf.value=today;
+  if(rdt&&!rdt.value)rdt.value=today;
   const txd=document.getElementById('txDateFilter');
   if(txd&&!txd.value)txd.value=today;
 }
@@ -1790,11 +1806,31 @@ function renderQRGrid(){
 // ════════════════════════════════════════════════
 //  DAILY REPORT
 // ════════════════════════════════════════════════
+function onReportDateRangeChange(){
+  const fEl=document.getElementById('reportDateFrom');
+  const tEl=document.getElementById('reportDateTo');
+  const warnEl=document.getElementById('reportRangeWarning');
+  let from=fEl.value, to=tEl.value;
+  warnEl.style.display='none';
+  if(from&&to){
+    if(to<from){ tEl.value=from; to=from; }
+    const fromD=new Date(from), toD=new Date(to);
+    const maxD=new Date(fromD); maxD.setFullYear(maxD.getFullYear()+1);
+    if(toD>maxD){
+      tEl.value=maxD.toISOString().split('T')[0];
+      warnEl.textContent='⚠️ Тайлангийн хугацаа хамгийн ихдээ 1 жил байх ёстой тул дуусах огноог автоматаар тохируулав.';
+      warnEl.style.display='block';
+    }
+  }
+  renderDailyReport();
+}
 function renderDailyReport(){
-  const date=document.getElementById('reportDate').value||new Date().toISOString().split('T')[0];
+  const dateFrom=document.getElementById('reportDateFrom').value||new Date().toISOString().split('T')[0];
+  const dateTo=document.getElementById('reportDateTo').value||dateFrom;
   const userId=document.getElementById('reportUser').value;
   const u=currentUser();
   const whs=getWH();
+  const isSingleDay=dateFrom===dateTo;
 
   // Which users to show
   let reportUsers=getUsers().filter(x=>x.role==='naraa');
@@ -1802,26 +1838,27 @@ function renderDailyReport(){
   else if(userId) reportUsers=reportUsers.filter(x=>x.id===userId);
 
   const el=document.getElementById('dailyReportContent');
-  const dateStr=new Date(date).toLocaleDateString('mn-MN',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  const fmt=d=>new Date(d).toLocaleDateString('mn-MN',{year:'numeric',month:'long',day:'numeric'});
+  const rangeStr=isSingleDay?fmt(dateFrom):`${fmt(dateFrom)} — ${fmt(dateTo)}`;
 
   let html=`
   <div class="report-header">
     <div class="report-header-top">
       <div>
         <div class="report-org">САНХҮҮГИЙН ТАСАГ — ХӨРӨНГИЙН НЭГДСЭН СИСТЕМ</div>
-        <div class="report-title-main">ӨДРИЙН АЖЛЫН ТАЙЛАН</div>
+        <div class="report-title-main">${isSingleDay?'ӨДРИЙН АЖЛЫН ТАЙЛАН':'ХУГАЦААНЫ АЖЛЫН ТАЙЛАН'}</div>
       </div>
-      <div style="text-align:right;font-size:13px;color:var(--muted)">${dateStr}</div>
+      <div style="text-align:right;font-size:13px;color:var(--muted)">${rangeStr}</div>
     </div>
     <div class="report-meta">
-      <div class="report-meta-item"><div class="report-meta-label">Нийт гүйлгээ</div><div class="report-meta-value">${getTx({date}).length}</div></div>
-      <div class="report-meta-item"><div class="report-meta-label">Орлого</div><div class="report-meta-value" style="color:var(--green)">${getTx({date}).filter(t=>t.type==='income').length}</div></div>
-      <div class="report-meta-item"><div class="report-meta-label">Зарлага</div><div class="report-meta-value" style="color:var(--red)">${getTx({date}).filter(t=>t.type==='expense').length}</div></div>
+      <div class="report-meta-item"><div class="report-meta-label">Нийт гүйлгээ</div><div class="report-meta-value">${getTx({dateFrom,dateTo}).length}</div></div>
+      <div class="report-meta-item"><div class="report-meta-label">Орлого</div><div class="report-meta-value" style="color:var(--green)">${getTx({dateFrom,dateTo}).filter(t=>t.type==='income').length}</div></div>
+      <div class="report-meta-item"><div class="report-meta-label">Зарлага</div><div class="report-meta-value" style="color:var(--red)">${getTx({dateFrom,dateTo}).filter(t=>t.type==='expense').length}</div></div>
     </div>
   </div>`;
 
   reportUsers.forEach(ru=>{
-    const txs=getTx({userId:ru.id,date});
+    const txs=getTx({userId:ru.id,dateFrom,dateTo});
     const income=txs.filter(t=>t.type==='income');
     const expense=txs.filter(t=>t.type==='expense');
     const checks=txs.filter(t=>t.type==='check');
@@ -1847,10 +1884,11 @@ function renderDailyReport(){
         <div class="naraa-stat"><div class="naraa-stat-n" style="color:var(--blue)">${checks.length}</div><div class="naraa-stat-l">QR шалгалт</div></div>
         <div class="naraa-stat"><div class="naraa-stat-n">${expense.reduce((s,t)=>s+t.qty,0)+income.reduce((s,t)=>s+t.qty,0)}</div><div class="naraa-stat-l">Нийт ширхэг</div></div>
       </div>
-      ${txs.length===0?'<div style="color:var(--hint);font-size:13px;padding:8px">Өнөөдөр гүйлгээ байхгүй</div>':
+      ${txs.length===0?'<div style="color:var(--hint);font-size:13px;padding:8px">Сонгосон хугацаанд гүйлгээ байхгүй</div>':
         `<div style="overflow-x:auto"><table style="font-size:12px">
-          <thead><tr><th>Цаг</th><th>QR код</th><th>Хөрөнгийн нэр</th><th>Үйлдэл</th><th>Тоо</th><th>Тэмдэглэл</th></tr></thead>
+          <thead><tr>${!isSingleDay?'<th>Огноо</th>':''}<th>Цаг</th><th>QR код</th><th>Хөрөнгийн нэр</th><th>Үйлдэл</th><th>Тоо</th><th>Тэмдэглэл</th></tr></thead>
           <tbody>${txs.map(t=>`<tr>
+            ${!isSingleDay?`<td style="color:var(--muted);white-space:nowrap">${new Date(t.createdAt).toLocaleDateString('mn-MN',{month:'2-digit',day:'2-digit'})}</td>`:''}
             <td style="color:var(--muted);white-space:nowrap">${new Date(t.createdAt).toLocaleTimeString('mn-MN',{hour:'2-digit',minute:'2-digit'})}</td>
             <td><code style="font-size:10px;background:var(--bg);padding:1px 5px;border-radius:3px">${t.assetQR||'—'}</code></td>
             <td>${t.assetName||'—'}</td>
@@ -1872,10 +1910,12 @@ function renderDailyReport(){
 
 // ── ӨДРИЙН ТАЙЛАН — БМ-9 "БАРАА МАТЕРИАЛЫН ТАЙЛАН" ХЭЛБЭРЭЭР ХЭВЛЭХ ──
 function printDailyReportBM9(){
-  const date=document.getElementById('reportDate').value||new Date().toISOString().split('T')[0];
+  const dateFrom=document.getElementById('reportDateFrom').value||new Date().toISOString().split('T')[0];
+  const dateTo=document.getElementById('reportDateTo').value||dateFrom;
   const userId=document.getElementById('reportUser').value;
   const u=currentUser();
   const whs=getWH();
+  const isSingleDay=dateFrom===dateTo;
 
   let reportUsers=getUsers().filter(x=>x.role==='naraa');
   if(u.role==='naraa') reportUsers=[u];
@@ -1883,25 +1923,26 @@ function printDailyReportBM9(){
 
   const allAssets=getAssets();
   const allTx=JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
-  const dateStr=new Date(date).toLocaleDateString('mn-MN',{year:'numeric',month:'long',day:'numeric'});
-  const isToday=date>=new Date().toISOString().split('T')[0];
+  const fmt=d=>new Date(d).toLocaleDateString('mn-MN',{year:'numeric',month:'long',day:'numeric'});
+  const rangeStr=isSingleDay?fmt(dateFrom):`${fmt(dateFrom)} — ${fmt(dateTo)}`;
+  const isCurrentEnd=dateTo>=new Date().toISOString().split('T')[0];
 
   let body=`<div style="text-align:center;margin-bottom:18px">
     <div style="font-size:11px;line-height:1.5">НХМЯагт БМ-9 Сангийн сайдын 2017 оны 12-р сарын<br>5 өдрийн 347 тоот тушаалын хавсралт</div>
     <div style="font-size:17px;font-weight:bold;margin-top:10px;letter-spacing:2px">БАРАА МАТЕРИАЛЫН ТАЙЛАН</div>
-    <div style="font-size:12px;margin-top:6px">${dateStr}</div>
+    <div style="font-size:12px;margin-top:6px">${rangeStr}</div>
   </div>`;
 
   let any=false;
   reportUsers.forEach(ru=>{
     const wh=whs.find(w=>w.id===ru.warehouseId);
     const whAssets=allAssets.filter(a=>a.warehouseId===ru.warehouseId);
-    const dayTx=allTx.filter(t=>{
+    const rangeTx=allTx.filter(t=>{
       if(t.userId!==ru.id)return false;
-      const d=new Date(typeof t.createdAt==='number'?t.createdAt:t.createdAt);
-      return d.toISOString().startsWith(date);
+      const dISO=new Date(typeof t.createdAt==='number'?t.createdAt:t.createdAt).toISOString().split('T')[0];
+      return dISO>=dateFrom&&dISO<=dateTo;
     });
-    const touchedIds=new Set(dayTx.map(t=>t.assetId));
+    const touchedIds=new Set(rangeTx.map(t=>t.assetId));
     const rows=whAssets.filter(a=>touchedIds.has(a.id));
     if(rows.length===0)return;
     any=true;
@@ -1910,17 +1951,17 @@ function printDailyReportBM9(){
     const rowsHTML=rows.map((a,i)=>{
       const assetAllTx=allTx.filter(t=>t.assetId===a.id);
       let closing=a.qty;
-      if(!isToday){
-        const afterDay=assetAllTx.filter(t=>{
+      if(!isCurrentEnd){
+        const afterRange=assetAllTx.filter(t=>{
           const d=new Date(typeof t.createdAt==='number'?t.createdAt:t.createdAt).toISOString().split('T')[0];
-          return d>date;
+          return d>dateTo;
         });
-        const netAfter=afterDay.reduce((s,t)=>s+(t.type==='income'?t.qty:t.type==='expense'?-t.qty:0),0);
+        const netAfter=afterRange.reduce((s,t)=>s+(t.type==='income'?t.qty:t.type==='expense'?-t.qty:0),0);
         closing=a.qty-netAfter;
       }
-      const dayIncome=dayTx.filter(t=>t.assetId===a.id&&t.type==='income').reduce((s,t)=>s+t.qty,0);
-      const dayExpense=dayTx.filter(t=>t.assetId===a.id&&t.type==='expense').reduce((s,t)=>s+t.qty,0);
-      const opening=closing-dayIncome+dayExpense;
+      const rangeIncome=rangeTx.filter(t=>t.assetId===a.id&&t.type==='income').reduce((s,t)=>s+t.qty,0);
+      const rangeExpense=rangeTx.filter(t=>t.assetId===a.id&&t.type==='expense').reduce((s,t)=>s+t.qty,0);
+      const opening=closing-rangeIncome+rangeExpense;
       const total=(a.price||0)*closing;
       totalSum+=total;
       return `<tr>
@@ -1930,8 +1971,8 @@ function printDailyReportBM9(){
         <td style="border:1px solid #000;padding:4px;text-align:center">${a.unit||'ш'}</td>
         <td style="border:1px solid #000;padding:4px;text-align:right">${(a.price||0).toLocaleString()}.00</td>
         <td style="border:1px solid #000;padding:4px;text-align:center">${opening>0?opening:''}</td>
-        <td style="border:1px solid #000;padding:4px;text-align:center;color:#2e7d32">${dayIncome>0?dayIncome:''}</td>
-        <td style="border:1px solid #000;padding:4px;text-align:center;color:#b71c1c">${dayExpense>0?dayExpense:''}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center;color:#2e7d32">${rangeIncome>0?rangeIncome:''}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center;color:#b71c1c">${rangeExpense>0?rangeExpense:''}</td>
         <td style="border:1px solid #000;padding:4px;text-align:center;font-weight:600">${closing}</td>
         <td style="border:1px solid #000;padding:4px;text-align:right">${total.toLocaleString()}.00</td>
       </tr>`;
@@ -1970,13 +2011,13 @@ function printDailyReportBM9(){
       </table>
       <div style="margin-top:12px;font-size:11px;line-height:2">
         Эд хариуцагч ....................................................../${ru.name}/<br>
-        Хавсарсан баримтын тоо:&nbsp;&nbsp; Орлогын ${dayTx.filter(t=>t.type==='income').length} ширхэг &nbsp;&nbsp; Зарлагын ${dayTx.filter(t=>t.type==='expense').length} ширхэг<br>
+        Хавсарсан баримтын тоо:&nbsp;&nbsp; Орлогын ${rangeTx.filter(t=>t.type==='income').length} ширхэг &nbsp;&nbsp; Зарлагын ${rangeTx.filter(t=>t.type==='expense').length} ширхэг<br>
         Хянасан нягтлан бодогч ....................................................../
       </div>
     </div>`;
   });
 
-  if(!any){alert('Энэ өдөр гүйлгээ бүртгэгдээгүй байна');return;}
+  if(!any){alert('Сонгосон хугацаанд гүйлгээ бүртгэгдээгүй байна');return;}
 
   const old=document.getElementById('printModal');if(old)old.remove();
   const modal=document.createElement('div');
