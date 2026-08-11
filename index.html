@@ -503,41 +503,36 @@ tr:hover td{background:#FAFBFC}
         <div class="page-sub">Хөрөнгийн QR код үүсгэж PDF татах</div>
         <div class="grid-2">
           <div class="card">
-            <div class="card-title">QR код үүсгэх</div>
+            <div class="card-title">QR код хайж сагсанд нэмэх</div>
             <div class="form-group">
               <label class="form-label">Хөрөнгө хайх</label>
               <input class="form-input" type="text" id="qrSearch" placeholder="QR код эсвэл нэр..." oninput="searchForQR()">
             </div>
             <div id="qrSearchResult"></div>
-            <div id="qrOutput" style="margin-top:12px"></div>
-            <div id="qrLabel" style="text-align:center;font-size:12px;color:var(--muted);margin-top:4px"></div>
-            <div style="margin-top:12px;display:flex;gap:8px">
-              <button class="btn" onclick="printQR()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                Хэвлэх
-              </button>
-              <button class="btn btn-primary" onclick="printAllQR()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Бүгдийг PDF татах
-              </button>
-            </div>
+            <div style="font-size:12px;color:var(--hint);margin-top:8px">Хайлтын үр дүн дээр дарж сонговол баруун талын хэвлэх сагсанд нэмэгдэнэ.</div>
           </div>
           <div class="card">
-            <div class="card-title">QR хэвлэх зааварчилгаа</div>
-            <div style="font-size:13px;color:var(--muted);line-height:1.8">
-              <p style="margin-bottom:8px">1. Хөрөнгийн нэр эсвэл QR код бичиж хайна</p>
-              <p style="margin-bottom:8px">2. Гарч ирсэн QR кодыг хэвлэнэ</p>
-              <p style="margin-bottom:8px">3. Хэвлэсэн QR кодыг хөрөнгийн дээр наана</p>
-              <p style="margin-bottom:8px">4. Гар утасны апп-аар уншуулна</p>
-              <div class="alert alert-info" style="margin-top:12px">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                Бүх хөрөнгийн QR код татахад хэдэн минут орно. PDF хэлбэрээр хэвлэхэд бэлэн болно.
-              </div>
+            <div class="card-title">🖨️ Хэвлэх сагс</div>
+            <div id="qrBasketCount" style="font-size:12px;color:var(--muted);margin-bottom:10px">0 ширхэг сонгогдсон · нэг А4 хуудсанд дээд тал нь 20 багтана</div>
+            <div id="qrBasketGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;max-height:300px;overflow-y:auto;padding:4px;border:1px dashed var(--border);border-radius:8px"></div>
+            <div style="margin-top:12px;display:flex;gap:8px">
+              <button class="btn btn-primary" onclick="printQRBasket()" style="flex:1">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Сагсыг хэвлэх
+              </button>
+              <button class="btn" onclick="clearQRBasket()">Хоослох</button>
             </div>
           </div>
         </div>
         <div class="card">
-          <div class="card-title">Бүх хөрөнгийн QR жагсаалт</div>
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <span>Бүх хөрөнгийн QR жагсаалт</span>
+            <button class="btn" onclick="printAllQR()" style="font-size:12px;padding:6px 12px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Бүгдийг PDF татах
+            </button>
+          </div>
+          <div style="font-size:12px;color:var(--hint);margin-bottom:8px">Дарж сонговол хэвлэх сагсанд нэмэгдэнэ. Зөвхөн шаардлагатай кодуудаа сонгож хэвлэх сагсаар хэвлэхийг зөвлөж байна — цаас хэмнэнэ.</div>
           <div id="qrGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:4px"></div>
         </div>
       </div>
@@ -1238,6 +1233,7 @@ function startApp(){
   renderDailyReport();
   renderUsers();
   renderQRGrid();
+  renderQRBasket();
 }
 
 function populateSelects(){
@@ -1317,7 +1313,7 @@ function navTo(page,btn){
   if(page==='report-daily')renderDailyReport();
   if(page==='report-inventory')renderInventory();
   if(page==='transactions'){renderTodayTx();renderTxHistory();}
-  if(page==='qr')renderQRGrid();
+  if(page==='qr'){renderQRGrid();renderQRBasket();}
   if(page==='users')renderUsers();
 }
 
@@ -1691,7 +1687,7 @@ function showQRFor(id){
   if(!a)return;
   navTo('qr',null);
   document.getElementById('qrSearch').value=a.name;
-  generateQRFor(a);
+  addToQRBasket(id);
 }
 
 // ════════════════════════════════════════════════
@@ -1760,47 +1756,134 @@ function renderTxHistory(){
 }
 
 // ════════════════════════════════════════════════
-//  QR CODES
+//  QR CODES — Хэвлэх сагс (сонгосон QR-үүдийг цуглуулж, зөвхөн тэдгээрийг хэвлэх)
 // ════════════════════════════════════════════════
-let qrInstance=null;
+let qrBasket=[]; // [{id, qr, name}]
+const QR_PER_PAGE=20; // А4 нэг хуудсанд дээд тал нь 20 QR код
+
 function searchForQR(){
   const q=document.getElementById('qrSearch').value.trim();
   const el=document.getElementById('qrSearchResult');
   if(!q){el.innerHTML='';return;}
-  const results=getAssets({q}).slice(0,4);
-  el.innerHTML=results.map(a=>`<div onclick="generateQRFor(getAssets().find(x=>x.id==='${a.id}'))" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;margin-bottom:6px;font-size:13px;display:flex;align-items:center;gap:8px">
-    <code style="font-size:11px;background:var(--bg);padding:2px 5px;border-radius:4px">${a.qr}</code> ${a.name}
+  const results=getAssets({q}).slice(0,6);
+  el.innerHTML=results.map(a=>`<div onclick="addToQRBasket('${a.id}')" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;margin-bottom:6px;font-size:13px;display:flex;align-items:center;gap:8px;justify-content:space-between">
+    <span><code style="font-size:11px;background:var(--bg);padding:2px 5px;border-radius:4px">${a.qr}</code> ${a.name}</span>
+    <span style="color:var(--blue);font-weight:700;font-size:15px">+</span>
   </div>`).join('');
 }
-function generateQRFor(a){
-  const el=document.getElementById('qrOutput');
-  el.innerHTML='';
-  document.getElementById('qrLabel').textContent=`${a.qr} — ${a.name}`;
-  if(qrInstance)qrInstance=null;
-  try{
-    // Скан хийх апп нь зөвхөн a.qr текстийг шууд харьцуулдаг тул JSON биш plain текст кодлоно
-    new QRCode(el,{text:a.qr,width:150,height:150,correctLevel:QRCode.CorrectLevel.H});
-  }catch(e){el.textContent='QR үүсгэхэд алдаа гарлаа';}
+
+function addToQRBasket(assetId){
+  const a=getAssets().find(x=>x.id===assetId);
+  if(!a)return;
+  if(qrBasket.find(x=>x.id===a.id)){
+    showQRToast(`${a.name} аль хэдийн сагсанд байна`);
+    return;
+  }
+  qrBasket.push({id:a.id,qr:a.qr,name:a.name});
+  renderQRBasket();
+  if(qrBasket.length>QR_PER_PAGE && (qrBasket.length-1)%QR_PER_PAGE===0){
+    showQRToast(`Сагсанд ${qrBasket.length} код боллоо — А4 нэг хуудсанд 20 багтах тул хэвлэхэд ${Math.ceil(qrBasket.length/QR_PER_PAGE)} хуудас гарна`);
+  }else{
+    showQRToast(`✓ ${a.name} сагсанд нэмэгдлээ`);
+  }
 }
-function printQR(){ window.print(); }
-function printAllQR(){
-  const assets=getAssets().slice(0,50);
-  let html=`<!DOCTYPE html><html><head><title>QR Codes</title><style>body{font-family:sans-serif}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:20px}.item{border:1px solid #ddd;border-radius:8px;padding:12px;text-align:center;page-break-inside:avoid}.name{font-size:11px;margin-top:6px;font-weight:600;word-break:break-word}.qr{font-size:10px;color:#888;margin-top:2px}@media print{.item{page-break-inside:avoid}}</style></head><body><div class="grid">`;
-  assets.forEach(a=>{html+=`<div class="item"><div id="qr-${a.id}" style="display:flex;justify-content:center"></div><div class="name">${a.name}</div><div class="qr">${a.qr}</div></div>`;});
+function removeFromQRBasket(assetId){
+  qrBasket=qrBasket.filter(x=>x.id!==assetId);
+  renderQRBasket();
+}
+function clearQRBasket(){
+  qrBasket=[];
+  renderQRBasket();
+}
+function renderQRBasket(){
+  const countEl=document.getElementById('qrBasketCount');
+  if(countEl){
+    const pages=qrBasket.length?Math.ceil(qrBasket.length/QR_PER_PAGE):0;
+    countEl.textContent=`${qrBasket.length} ширхэг сонгогдсон · нэг А4 хуудсанд дээд тал нь ${QR_PER_PAGE} багтана${pages>1?` · ${pages} хуудас хэвлэгдэнэ`:''}`;
+  }
+  const el=document.getElementById('qrBasketGrid');
+  if(!el)return;
+  if(qrBasket.length===0){
+    el.innerHTML=`<div style="grid-column:1/-1;text-align:center;color:var(--hint);font-size:12px;padding:20px 8px">Зүүн талаас хөрөнгө хайж эсвэл доорх жагсаалтаас сонговол QR код энд нэмэгдэнэ</div>`;
+    return;
+  }
+  el.innerHTML=qrBasket.map(a=>`<div style="position:relative;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 6px;text-align:center">
+    <button onclick="removeFromQRBasket('${a.id}')" title="Хасах" style="position:absolute;top:2px;right:2px;background:var(--red-l);color:var(--red);border:none;border-radius:50%;width:16px;height:16px;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    <div id="basketqr-${a.id}" style="display:flex;justify-content:center;margin-bottom:4px"></div>
+    <div style="font-size:9px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</div>
+  </div>`).join('');
+  qrBasket.forEach(a=>{
+    const cell=document.getElementById('basketqr-'+a.id);
+    if(!cell)return;
+    try{new QRCode(cell,{text:a.qr,width:56,height:56,correctLevel:QRCode.CorrectLevel.M});}catch(e){}
+  });
+}
+
+let _qrToastTimer=null;
+function showQRToast(msg){
+  let t=document.getElementById('qrToast');
+  if(!t){
+    t=document.createElement('div');
+    t.id='qrToast';
+    t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);opacity:0;transition:opacity .2s;pointer-events:none;max-width:80vw;text-align:center';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.opacity='1';
+  clearTimeout(_qrToastTimer);
+  _qrToastTimer=setTimeout(()=>{t.style.opacity='0';},2200);
+}
+
+// Зөвхөн хэвлэх сагсанд байгаа QR кодуудыг, нэг А4 хуудсанд дээд тал нь 20-иар
+// багцалж, тусдаа цонхонд хэвлэнэ — үндсэн хуудасны бусад агуулга (жагсаалт гэх мэт)
+// хэзээ ч хэвлэгдэхгүй.
+function printQRBasket(){
+  if(qrBasket.length===0){
+    showQRToast('Эхлээд хэвлэх сагсанд QR код нэмнэ үү');
+    return;
+  }
+  const html=buildQRPrintHTML(qrBasket);
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),600);
+}
+
+function buildQRPrintHTML(items){
+  let html=`<!DOCTYPE html><html><head><title>QR Хэвлэх</title><style>
+    @page{size:A4;margin:10mm}
+    *{box-sizing:border-box}
+    body{font-family:sans-serif;margin:0}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr)}
+    .item{border:1px dashed #999;padding:8px 4px;text-align:center;page-break-inside:avoid}
+    .name{font-size:10px;margin-top:4px;font-weight:600;word-break:break-word;line-height:1.25}
+    .qr{font-size:9px;color:#888;margin-top:2px}
+    @media print{.item{page-break-inside:avoid}}
+  </style></head><body><div class="grid">`;
+  items.forEach((a,i)=>{
+    const breakAfter=(i+1)%QR_PER_PAGE===0 && (i+1)<items.length;
+    html+=`<div class="item"${breakAfter?' style="page-break-after:always"':''}><div id="qr-${a.id}" style="display:flex;justify-content:center"></div><div class="name">${a.name}</div><div class="qr">${a.qr}</div></div>`;
+  });
   html+=`</div><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script><script>
-    var assetQRs=${JSON.stringify(assets.map(a=>({id:a.id,qr:a.qr})))};
-    assetQRs.forEach(function(a){
+    var items=${JSON.stringify(items.map(a=>({id:a.id,qr:a.qr})))};
+    items.forEach(function(a){
       var el=document.getElementById('qr-'+a.id);
       if(el) new QRCode(el,{text:a.qr,width:100,height:100});
     });
   <\/script></body></html>`;
+  return html;
+}
+
+function printAllQR(){
+  const assets=getAssets();
+  const html=buildQRPrintHTML(assets.map(a=>({id:a.id,qr:a.qr,name:a.name})));
   const w=window.open('','_blank');w.document.write(html);w.document.close();
   setTimeout(()=>w.print(),1500);
 }
 function renderQRGrid(){
   const assets=getAssets().slice(0,24);
   const el=document.getElementById('qrGrid');
-  el.innerHTML=assets.map(a=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="generateQRFor(getAssets().find(x=>x.id==='${a.id}'))">
+  el.innerHTML=assets.map(a=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer" onclick="addToQRBasket('${a.id}')">
     <div id="qrgrid-${a.id}" style="display:flex;justify-content:center;margin-bottom:6px"></div>
     <div style="font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</div>
     <div style="font-size:10px;color:var(--muted)">${a.qr}</div>
