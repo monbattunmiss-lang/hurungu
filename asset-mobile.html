@@ -253,7 +253,10 @@ window.jsQRReady = new Promise((resolve) => {
       <div id="topbar-title" style="font-size:17px;font-weight:600"></div>
       <div id="topbar-sub" style="font-size:12px;opacity:.8;margin-top:2px"></div>
     </div>
-    <div style="text-align:right"><div id="syncBadge" style="font-size:10px;opacity:.8;margin-bottom:4px">⏳ Холбогдож байна...</div><button onclick="logout()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer">Гарах</button></div>
+    <div style="text-align:right;display:flex;align-items:center;gap:6px">
+      <button onclick="resyncLocalImages()" title="Энэ утсанд байгаа зургуудыг Cloud руу дахин илгээх" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:10px;padding:7px 10px;font-size:11px;cursor:pointer">🔄 Зураг sync</button>
+      <div style="text-align:right"><div id="syncBadge" style="font-size:10px;opacity:.8;margin-bottom:4px">⏳ Холбогдож байна...</div><button onclick="logout()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer">Гарах</button></div>
+    </div>
   </div>
 
   <div id="content">
@@ -710,6 +713,28 @@ function saveAssetImage(assetId, dataUrl){
   if(typeof fbDB!=='undefined' && fbDB){
     fbDB.ref('images/'+assetId).set(dataUrl).catch(e=>console.log('Зураг sync алдаа:',e));
   }
+}
+// Хуучин (Cloud sync засвар хийгдэхээс өмнө авсан) зургууд зөвхөн тухайн
+// төхөөрөмжийн localStorage-д хоцорсон байж болзошгүй тул, хэрэглэгч энэ
+// төхөөрөмж дээрх бүх локал зургаа Cloud руу дахин нэг дор илгээх боломж.
+function resyncLocalImages(){
+  let m={};
+  try{ m=JSON.parse(localStorage.getItem('ams_img_local')||'{}'); }catch(e){}
+  const keys=Object.keys(m);
+  if(keys.length===0){ showToast('Энэ утсан дээр локал зураг олдсонгүй'); return; }
+  if(!fbDB){ showToast('Cloud холбогдоогүй байна, түр хүлээгээд дахин оролдоно уу'); return; }
+  fbDB.ref('images').update(m)
+    .then(()=>showToast(`✅ ${keys.length} зураг Cloud руу илгээгдлээ`))
+    .catch(e=>showToast('Sync алдаа: '+(e&&e.message?e.message:e)));
+}
+// Дуугүйгээр автоматаар ажилладаг хувилбар — холболт үүсэх бүрд дуудагдаж,
+// хэрэглэгчийг саадгүйгээр хуучин зургуудыг цаг тухайд нь Cloud руу шилжүүлнэ.
+function resyncLocalImagesQuiet(){
+  let m={};
+  try{ m=JSON.parse(localStorage.getItem('ams_img_local')||'{}'); }catch(e){ return; }
+  const keys=Object.keys(m);
+  if(keys.length===0 || !fbDB) return;
+  fbDB.ref('images').update(m).catch(e=>console.log('Auto image sync алдаа:',e));
 }
 function currentUser(){try{return JSON.parse(ls(KEYS.S));}catch{return null;}}
 
@@ -1329,6 +1354,7 @@ function initFirebase(){
       setSyncStatus('🟢 Cloud холбогдсон');
       pullFromCloud();
       listenCloud();
+      resyncLocalImagesQuiet();
     };
     document.head.appendChild(s2);
   };
