@@ -31,6 +31,17 @@ h2{margin-bottom:16px;color:#111}
     <div style="font-size:24px">✅</div>
     <div style="font-weight:700;margin:8px 0" id="resultText"></div>
     <div style="font-size:13px;color:#047857">Одоо asset-web.html дээр хөрөнгийн дэлгэрэнгүй харахад зураг гарч ирнэ!</div>
+    <div id="unmatchedBox" style="display:none;margin-top:14px;text-align:left;background:#FEF3DC;border-radius:8px;padding:12px">
+      <div style="font-weight:700;font-size:13px;color:#92400E;margin-bottom:6px">⚠️ Тохирол олдоогүй QR-ууд (Drive-с яг тэр нэртэй файл олдсонгүй):</div>
+      <div id="unmatchedList" style="font-size:12px;color:#92400E;max-height:160px;overflow-y:auto;line-height:1.7"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px;max-width:600px">
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px">🔍 Тодорхой QR-г шалгах</div>
+    <div style="font-size:12px;color:#666;margin-bottom:10px">Жишээ нь БМП-1 яагаад зураггүй байгааг шалгахын тулд QR кодыг (жишээ нь 20260000134) бичнэ үү.</div>
+    <input id="checkId" type="text" placeholder="QR код (QR- угтвар хэрэггүй)" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:8px">
+    <button class="btn" onclick="checkOneId()" style="width:auto;padding:10px 20px">Шалгах</button>
+    <div id="checkResult" style="margin-top:10px;font-size:13px;line-height:1.8"></div>
   </div>
 </div>
 <script>
@@ -107,14 +118,22 @@ async function startMatch(){
 
   // asset-ын QR ID → Drive file ID тааруулах
   const imgIdMap={};
+  const unmatched=[];
   let matched=0;
   Object.entries(IMG_MAP).forEach(([qrId, fileName])=>{
     const fileId=nameToId[fileName];
     if(fileId){
       imgIdMap[qrId]=fileId;
       matched++;
+    }else{
+      unmatched.push({qrId, fileName});
     }
   });
+
+  // Дараа нь "Тодорхой QR-г шалгах" хэрэгсэлд ашиглахын тулд хадгална
+  window._lastNameToId=nameToId;
+  window._lastImgIdMap=imgIdMap;
+  window._lastUnmatched=unmatched;
 
   bar.style.width='90%';
 
@@ -137,6 +156,45 @@ async function startMatch(){
   resultText.textContent=`${matched} зургийн холболт амжилттай!`;
   msg.textContent=`Нийт ${allFiles.length} файлаас ${matched} тааралт олдлоо.`;
   btn.textContent='✅ Дууслаа';
+
+  // Тохирол олдоогүй зүйлсийг харуулах — жишээ нь Drive дэх файлын нэр
+  // IMG_MAP-д бичигдсэн нэртэй яг таг тохирохгүй байвал энд гарч ирнэ
+  if(unmatched.length>0){
+    const box=document.getElementById('unmatchedBox');
+    const list=document.getElementById('unmatchedList');
+    box.style.display='block';
+    list.innerHTML=unmatched.slice(0,50).map(u=>`QR-${u.qrId} — хайсан файлын нэр: <code>${u.fileName}</code>`).join('<br>')
+      + (unmatched.length>50?`<br>...болон дахин ${unmatched.length-50} зүйл`:'');
+  }
+}
+
+// Тодорхой нэг QR-г яагаад тохирохгүй байгааг шалгах хэрэгсэл.
+// Товч дараагүй (startMatch дуудагдаагүй) үед энэ нь зөвхөн IMG_MAP-д байгаа эсэхийг
+// шалгана; товч дарж Drive-с татсаны дараа файл олдсон эсэхийг ч харуулна.
+function checkOneId(){
+  const raw=document.getElementById('checkId').value.trim().replace(/^QR-/i,'');
+  const el=document.getElementById('checkResult');
+  if(!raw){ el.innerHTML='QR код оруулна уу'; return; }
+  const fileName=IMG_MAP[raw];
+  if(!fileName){
+    el.innerHTML=`❌ <strong>QR-${raw}</strong> нь IMG_MAP жагсаалтад огт байхгүй байна. Энэ гэрэл зураг image_matcher.html-ийн доторх жагсаалтад анхнаасаа ороогүй гэсэн үг — жагсаалтыг шинэчлэх шаардлагатай.`;
+    return;
+  }
+  let html=`IMG_MAP дотор байна: хайх файлын нэр <code>${fileName}</code><br>`;
+  if(window._lastNameToId){
+    const fileId=window._lastNameToId[fileName];
+    if(fileId){
+      html+=`✅ Google Drive-с яг ийм нэртэй файл олдсон (file id: <code>${fileId}</code>).`;
+      if(window._lastImgIdMap && window._lastImgIdMap[raw]){
+        html+=`<br>✅ Cloud руу илгээгдсэн байх ёстой.`;
+      }
+    }else{
+      html+=`❌ Google Drive-с яг ийм нэртэй файл олдсонгүй. Магадгүй Drive дэх бодит файлын нэр өөр байна (том/жижиг үсэг, зай, өргөтгөл .jpg/.JPG зэрэг). Drive folder-оо нээгээд файлын нэрийг яг таг харьцуулж үзнэ үү.`;
+    }
+  }else{
+    html+=`Эхлээд дээрх "🔍 Зургийн ID тааруулж эхлэх" товчийг дарж Drive-с татаад дараа нь энд шалгана уу.`;
+  }
+  el.innerHTML=html;
 }
 </script>
 </body>
