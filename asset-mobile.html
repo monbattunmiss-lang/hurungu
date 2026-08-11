@@ -184,8 +184,31 @@ html,body{height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSys
 #toast{position:fixed;bottom:calc(80px + var(--safe-bot) + 10px);left:50%;transform:translateX(-50%) translateY(20px);background:#323232;color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;opacity:0;transition:all .25s;z-index:999;white-space:nowrap;pointer-events:none}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
+<script>
+// jsQR-ийг олон CDN-с дараалан ачаалж оролдоно — нэг CDN блоклогдсон/удаан бол
+// дараагийнхыг туршина. Ингэснээр сүлжээ өөр өөр байгаа төхөөрөмж дээр ч
+// "QR унших сан ачааллагдсангүй" алдаа гарах магадлал буурна.
+window.jsQRReady = new Promise((resolve) => {
+  const sources = [
+    'https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js',
+    'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',
+    'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js'
+  ];
+  let i = 0;
+  function tryNext(){
+    if(typeof jsQR !== 'undefined'){ resolve(true); return; }
+    if(i >= sources.length){ resolve(false); return; }
+    const s = document.createElement('script');
+    s.src = sources[i++];
+    s.onload = () => { resolve(typeof jsQR !== 'undefined'); if(typeof jsQR==='undefined') tryNext(); };
+    s.onerror = tryNext;
+    document.head.appendChild(s);
+  }
+  tryNext();
+});
+</script>
 </head>
+
 <body>
 
 <!-- LOGIN -->
@@ -835,7 +858,9 @@ function renderAssets(){
 }
 
 // ── DETAIL ──
+let currentDetailId=null;
 function showDetail(id){
+  currentDetailId=id;
   const a=get(KEYS.A).find(x=>x.id===id);
   if(!a)return;
   const whs=getWH();
@@ -888,6 +913,7 @@ function showDetail(id){
   document.getElementById('detailPage').classList.add('open');
 }
 function closeDetail(){
+  currentDetailId=null;
   document.getElementById('detailPage').classList.remove('open');
 }
 
@@ -904,20 +930,26 @@ function startDecode(){
   const v=document.getElementById('scanVideo');
   const canvas=document.getElementById('scanCanvas');
   const ctx=canvas.getContext('2d',{willReadFrequently:true});
-  if(typeof jsQR==='undefined'){
-    document.getElementById('scanResult').innerHTML='<div class="empty"><p>QR унших сан ачааллагдсангүй. Интернэт холболтоо шалгаад хуудсыг дахин ачаална уу.</p></div>';
-    return;
-  }
-  scanTimer=setInterval(()=>{
-    if(v.readyState!==v.HAVE_ENOUGH_DATA)return;
-    canvas.width=v.videoWidth;
-    canvas.height=v.videoHeight;
-    ctx.drawImage(v,0,0,canvas.width,canvas.height);
-    let imageData;
-    try{imageData=ctx.getImageData(0,0,canvas.width,canvas.height);}catch{return;}
-    const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:'dontInvert'});
-    if(code&&code.data){handleScan(code.data);}
-  },300);
+  const resultEl=document.getElementById('scanResult');
+  const ready=(typeof window.jsQRReady!=='undefined')?window.jsQRReady:Promise.resolve(typeof jsQR!=='undefined');
+  resultEl.innerHTML='<div class="empty"><p>QR унших сан бэлдэж байна...</p></div>';
+  ready.then(ok=>{
+    if(!ok || typeof jsQR==='undefined'){
+      resultEl.innerHTML='<div class="empty"><p>QR унших сан ачааллагдсангүй. Интернэт холболтоо шалгаад хуудсыг дахин ачаална уу.</p></div>';
+      return;
+    }
+    resultEl.innerHTML='';
+    scanTimer=setInterval(()=>{
+      if(v.readyState!==v.HAVE_ENOUGH_DATA)return;
+      canvas.width=v.videoWidth;
+      canvas.height=v.videoHeight;
+      ctx.drawImage(v,0,0,canvas.width,canvas.height);
+      let imageData;
+      try{imageData=ctx.getImageData(0,0,canvas.width,canvas.height);}catch{return;}
+      const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:'dontInvert'});
+      if(code&&code.data){handleScan(code.data);}
+    },300);
+  });
 }
 function handleScan(val){
   clearInterval(scanTimer);
@@ -1328,6 +1360,7 @@ function pullFromCloud(){
     if(d){
       localStorage.setItem('ams_img_local',JSON.stringify(d));
       if(curTab==='assets')renderAssets();
+      if(currentDetailId)showDetail(currentDetailId);
     }
   });
 }
@@ -1351,6 +1384,7 @@ function listenCloud(){
     if(d){
       localStorage.setItem('ams_img_local',JSON.stringify(d));
       if(curTab==='assets')renderAssets();
+      if(currentDetailId)showDetail(currentDetailId);
     }
   });
 }

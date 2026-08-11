@@ -1636,7 +1636,9 @@ function saveAsset(){
   renderDashboard();
 }
 
+let currentDetailAssetId=null;
 function showAssetDetail(id){
+  currentDetailAssetId=id;
   const a=getAssets().find(x=>x.id===id);
   if(!a)return;
   const whs=getWH(); const users=getUsers();
@@ -2714,7 +2716,7 @@ function autoDetectType(val){
 }
 
 function openModal(id){document.getElementById(id).classList.add('open');}
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');if(id==='assetDetailModal')currentDetailAssetId=null;}
 document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});});
 
 // ════════════════════════════════════════════════
@@ -2800,6 +2802,7 @@ function pullFromCloud(){
     const data = snap.val();
     if(data){
       localStorage.setItem('ams_img_local', JSON.stringify(data));
+      if(currentDetailAssetId && typeof showAssetDetail==='function') showAssetDetail(currentDetailAssetId);
     }
   });
 }
@@ -2849,6 +2852,7 @@ function listenCloudChanges(){
     if(data){
       localStorage.setItem('ams_img_local', JSON.stringify(data));
       if(typeof renderAssets==='function') renderAssets();
+      if(currentDetailAssetId && typeof showAssetDetail==='function') showAssetDetail(currentDetailAssetId);
     }
   });
 }
