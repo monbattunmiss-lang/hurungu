@@ -949,7 +949,7 @@ tr:hover td{background:#FAFBFC}
 // ════════════════════════════════════════════════
 //  DATABASE LAYER
 // ════════════════════════════════════════════════
-const KEYS={ASSETS:'ams_assets',USERS:'ams_users',TX:'ams_transactions',WH:'ams_warehouses',SESSION:'ams_session'};
+const KEYS={ASSETS:'ams_assets',USERS:'ams_users',TX:'ams_transactions',WH:'ams_warehouses',SESSION:'ams_session',IMG:'ams_img_map'};
 
 function seedWH(){return[{id:'w1',name:'1-р агуулах',location:'А байр'},{id:'w2',name:'3-р агуулах',location:'Б байр'},{id:'w3',name:'7-р агуулах',location:'В байр'},{id:'w4',name:'2-р агуулах',location:'А байр'}]}
 function seedUsers(){return[
@@ -1776,7 +1776,8 @@ function generateQRFor(a){
   document.getElementById('qrLabel').textContent=`${a.qr} — ${a.name}`;
   if(qrInstance)qrInstance=null;
   try{
-    new QRCode(el,{text:JSON.stringify({id:a.id,qr:a.qr,name:a.name}),width:150,height:150,correctLevel:QRCode.CorrectLevel.H});
+    // Скан хийх апп нь зөвхөн a.qr текстийг шууд харьцуулдаг тул JSON биш plain текст кодлоно
+    new QRCode(el,{text:a.qr,width:150,height:150,correctLevel:QRCode.CorrectLevel.H});
   }catch(e){el.textContent='QR үүсгэхэд алдаа гарлаа';}
 }
 function printQR(){ window.print(); }
@@ -1784,7 +1785,13 @@ function printAllQR(){
   const assets=getAssets().slice(0,50);
   let html=`<!DOCTYPE html><html><head><title>QR Codes</title><style>body{font-family:sans-serif}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:20px}.item{border:1px solid #ddd;border-radius:8px;padding:12px;text-align:center;page-break-inside:avoid}.name{font-size:11px;margin-top:6px;font-weight:600;word-break:break-word}.qr{font-size:10px;color:#888;margin-top:2px}@media print{.item{page-break-inside:avoid}}</style></head><body><div class="grid">`;
   assets.forEach(a=>{html+=`<div class="item"><div id="qr-${a.id}" style="display:flex;justify-content:center"></div><div class="name">${a.name}</div><div class="qr">${a.qr}</div></div>`;});
-  html+=`</div><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script><script>document.querySelectorAll('[id^=qr-]').forEach(el=>{new QRCode(el,{text:'${assets[0]?assets[0].qr:"QR"}',width:100,height:100})});<\/script></body></html>`;
+  html+=`</div><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script><script>
+    var assetQRs=${JSON.stringify(assets.map(a=>({id:a.id,qr:a.qr})))};
+    assetQRs.forEach(function(a){
+      var el=document.getElementById('qr-'+a.id);
+      if(el) new QRCode(el,{text:a.qr,width:100,height:100});
+    });
+  <\/script></body></html>`;
   const w=window.open('','_blank');w.document.write(html);w.document.close();
   setTimeout(()=>w.print(),1500);
 }
@@ -1927,13 +1934,9 @@ function printDailyReportBM9(){
   const rangeStr=isSingleDay?fmt(dateFrom):`${fmt(dateFrom)} — ${fmt(dateTo)}`;
   const isCurrentEnd=dateTo>=new Date().toISOString().split('T')[0];
 
-  let body=`<div style="text-align:center;margin-bottom:18px">
-    <div style="font-size:11px;line-height:1.5">НХМЯагт БМ-9 Сангийн сайдын 2017 оны 12-р сарын<br>5 өдрийн 347 тоот тушаалын хавсралт</div>
-    <div style="font-size:17px;font-weight:bold;margin-top:10px;letter-spacing:2px">БАРАА МАТЕРИАЛЫН ТАЙЛАН</div>
-    <div style="font-size:12px;margin-top:6px">${rangeStr}</div>
-  </div>`;
-
-  let any=false;
+  // Бүх нярависын мөрүүдийг НЭГ дараалсан жагсаалт руу цуглуулна
+  const combinedRows=[];
+  let incomeDocCount=0, expenseDocCount=0;
   reportUsers.forEach(ru=>{
     const wh=whs.find(w=>w.id===ru.warehouseId);
     const whAssets=allAssets.filter(a=>a.warehouseId===ru.warehouseId);
@@ -1944,11 +1947,10 @@ function printDailyReportBM9(){
     });
     const touchedIds=new Set(rangeTx.map(t=>t.assetId));
     const rows=whAssets.filter(a=>touchedIds.has(a.id));
-    if(rows.length===0)return;
-    any=true;
+    incomeDocCount+=rangeTx.filter(t=>t.type==='income').length;
+    expenseDocCount+=rangeTx.filter(t=>t.type==='expense').length;
 
-    let totalSum=0;
-    const rowsHTML=rows.map((a,i)=>{
+    rows.forEach(a=>{
       const assetAllTx=allTx.filter(t=>t.assetId===a.id);
       let closing=a.qty;
       if(!isCurrentEnd){
@@ -1963,61 +1965,65 @@ function printDailyReportBM9(){
       const rangeExpense=rangeTx.filter(t=>t.assetId===a.id&&t.type==='expense').reduce((s,t)=>s+t.qty,0);
       const opening=closing-rangeIncome+rangeExpense;
       const total=(a.price||0)*closing;
-      totalSum+=total;
-      return `<tr>
-        <td style="border:1px solid #000;padding:4px;text-align:center">${i+1}</td>
-        <td style="border:1px solid #000;padding:4px;text-align:center"><code style="font-size:9px">${a.qr||'—'}</code></td>
-        <td style="border:1px solid #000;padding:4px;text-align:left">${a.name}</td>
-        <td style="border:1px solid #000;padding:4px;text-align:center">${a.unit||'ш'}</td>
-        <td style="border:1px solid #000;padding:4px;text-align:right">${(a.price||0).toLocaleString()}.00</td>
-        <td style="border:1px solid #000;padding:4px;text-align:center">${opening>0?opening:''}</td>
-        <td style="border:1px solid #000;padding:4px;text-align:center;color:#2e7d32">${rangeIncome>0?rangeIncome:''}</td>
-        <td style="border:1px solid #000;padding:4px;text-align:center;color:#b71c1c">${rangeExpense>0?rangeExpense:''}</td>
-        <td style="border:1px solid #000;padding:4px;text-align:center;font-weight:600">${closing}</td>
-        <td style="border:1px solid #000;padding:4px;text-align:right">${total.toLocaleString()}.00</td>
-      </tr>`;
-    }).join('');
-
-    const accountNo=rows[0]?(rows[0].accountNo||'—'):'—';
-
-    body+=`<div style="margin-bottom:22px;page-break-inside:avoid">
-      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
-        <div>Дансны дугаар: <strong>${accountNo}</strong></div>
-        <div>Эд хариуцагч: <strong>${ru.naraaType||ru.name}</strong></div>
-      </div>
-      <div style="font-size:12px;font-weight:bold;margin-bottom:8px">Дансны нэр: ${wh?wh.name:'—'}</div>
-      <table style="width:100%;border-collapse:collapse;font-size:11px">
-        <thead>
-          <tr>
-            <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">№</th>
-            <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Код</th>
-            <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Материал үнэт зүйлийн нэр,<br>зэрэг, дугаар</th>
-            <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Хэмжих<br>нэгж</th>
-            <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Нэг бүрийн<br>өртөг</th>
-            <th colspan="4" style="border:1px solid #000;padding:4px;background:#f5f5f5">Тоо хэмжээ</th>
-            <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Мөнгөн<br>дүн</th>
-          </tr>
-          <tr>
-            <th style="border:1px solid #000;padding:4px;background:#f5f5f5">Эхний<br>үлдэгдэл</th>
-            <th style="border:1px solid #000;padding:4px;background:#f5f5f5">Орлого</th>
-            <th style="border:1px solid #000;padding:4px;background:#f5f5f5">Зарлага</th>
-            <th style="border:1px solid #000;padding:4px;background:#f5f5f5">Эцсийн<br>үлдэгдэл</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHTML}
-          <tr style="font-weight:700;background:#f5f5f5"><td colspan="9" style="border:1px solid #000;padding:4px;text-align:right">Дүн</td><td style="border:1px solid #000;padding:4px;text-align:right">${totalSum.toLocaleString()}.00</td></tr>
-        </tbody>
-      </table>
-      <div style="margin-top:12px;font-size:11px;line-height:2">
-        Эд хариуцагч ....................................................../${ru.name}/<br>
-        Хавсарсан баримтын тоо:&nbsp;&nbsp; Орлогын ${rangeTx.filter(t=>t.type==='income').length} ширхэг &nbsp;&nbsp; Зарлагын ${rangeTx.filter(t=>t.type==='expense').length} ширхэг<br>
-        Хянасан нягтлан бодогч ....................................................../
-      </div>
-    </div>`;
+      combinedRows.push({a,ru,wh,opening,rangeIncome,rangeExpense,closing,total});
+    });
   });
 
-  if(!any){alert('Сонгосон хугацаанд гүйлгээ бүртгэгдээгүй байна');return;}
+  if(combinedRows.length===0){alert('Сонгосон хугацаанд гүйлгээ бүртгэгдээгүй байна');return;}
+
+  const totalSum=combinedRows.reduce((s,r)=>s+r.total,0);
+  const rowsHTML=combinedRows.map((r,i)=>`<tr>
+        <td style="border:1px solid #000;padding:4px;text-align:center">${i+1}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center"><code style="font-size:9px">${r.a.qr||'—'}</code></td>
+        <td style="border:1px solid #000;padding:4px;text-align:left">${r.a.name}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center">${r.a.unit||'ш'}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:right">${(r.a.price||0).toLocaleString()}.00</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center">${r.opening>0?r.opening:''}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center;color:#2e7d32">${r.rangeIncome>0?r.rangeIncome:''}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center;color:#b71c1c">${r.rangeExpense>0?r.rangeExpense:''}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center;font-weight:600">${r.closing}</td>
+        <td style="border:1px solid #000;padding:4px;text-align:right">${r.total.toLocaleString()}.00</td>
+        <td style="border:1px solid #000;padding:4px;text-align:center;font-size:10px">${r.ru.name}</td>
+      </tr>`).join('');
+
+  const uniqueNaraa=[...new Set(combinedRows.map(r=>r.ru.name))];
+
+  let body=`<div style="text-align:center;margin-bottom:18px">
+    <div style="font-size:11px;line-height:1.5">НХМЯагт БМ-9 Сангийн сайдын 2017 оны 12-р сарын<br>5 өдрийн 347 тоот тушаалын хавсралт</div>
+    <div style="font-size:17px;font-weight:bold;margin-top:10px;letter-spacing:2px">БАРАА МАТЕРИАЛЫН ТАЙЛАН</div>
+    <div style="font-size:12px;margin-top:6px">${rangeStr}</div>
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:11px">
+    <thead>
+      <tr>
+        <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">№</th>
+        <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Код</th>
+        <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Материал үнэт зүйлийн нэр,<br>зэрэг, дугаар</th>
+        <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Хэмжих<br>нэгж</th>
+        <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Нэг бүрийн<br>өртөг</th>
+        <th colspan="4" style="border:1px solid #000;padding:4px;background:#f5f5f5">Тоо хэмжээ</th>
+        <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Мөнгөн<br>дүн</th>
+        <th rowspan="2" style="border:1px solid #000;padding:4px;background:#f5f5f5">Нярав</th>
+      </tr>
+      <tr>
+        <th style="border:1px solid #000;padding:4px;background:#f5f5f5">Эхний<br>үлдэгдэл</th>
+        <th style="border:1px solid #000;padding:4px;background:#f5f5f5">Орлого</th>
+        <th style="border:1px solid #000;padding:4px;background:#f5f5f5">Зарлага</th>
+        <th style="border:1px solid #000;padding:4px;background:#f5f5f5">Эцсийн<br>үлдэгдэл</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHTML}
+      <tr style="font-weight:700;background:#f5f5f5"><td colspan="9" style="border:1px solid #000;padding:4px;text-align:right">Дүн</td><td style="border:1px solid #000;padding:4px;text-align:right">${totalSum.toLocaleString()}.00</td><td style="border:1px solid #000;padding:4px"></td></tr>
+    </tbody>
+  </table>
+  <div style="margin-top:14px;font-size:11px;line-height:2">
+    Хавсарсан баримтын тоо:&nbsp;&nbsp; Орлогын ${incomeDocCount} ширхэг &nbsp;&nbsp; Зарлагын ${expenseDocCount} ширхэг
+  </div>
+  <div style="margin-top:18px;font-size:11px;line-height:2.4">
+    ${uniqueNaraa.map(n=>`Эд хариуцагч ....................................................../${n}/`).join('<br>')}<br>
+    Хянасан нягтлан бодогч ....................................................../
+  </div>`;
 
   const old=document.getElementById('printModal');if(old)old.remove();
   const modal=document.createElement('div');
@@ -2651,11 +2657,22 @@ function confirmClearAll(){
 
 function getAssetImage(qrId){
   try{
-    const imgMap=JSON.parse(localStorage.getItem('ams_img_map')||'{}');
+    const imgMap=JSON.parse(localStorage.getItem(KEYS.IMG)||'{}');
     const fileId=imgMap[qrId.replace('QR-','')];
     if(fileId) return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
     return null;
   }catch(e){ return null; }
+}
+
+// Няравын төхөөрөмж дээр авсан зургийн (QR → Google Drive file id) харгалзааг
+// бусад төхөөрөмж, хэрэглэгчид (нягтлан, санхүүгийн дарга гэх мэт) харах боломжтой
+// болгохын тулд localStorage-с гадна Cloud (Firebase)-д хадгална.
+// Зураг оруулах бусад хуудас (жишээ нь asset-mobile.html) зургийг Google Drive-т
+// байршуулсны дараа localStorage.setItem('ams_img_map', ...) хийхийн оронд
+// эсвэл нэмээд энэ функцийг дуудвал бусад төхөөрөмж дээр ч зураг харагдана.
+function saveImgMap(imgMap){
+  localStorage.setItem(KEYS.IMG, JSON.stringify(imgMap));
+  if(typeof pushImgMapToCloud==='function') pushImgMapToCloud(imgMap);
 }
 
 
@@ -2765,6 +2782,12 @@ function pullFromCloud(){
       populateSelects();
     }
   });
+  fbDB.ref('imgMap').once('value').then(snap => {
+    const data = snap.val();
+    if(data){
+      localStorage.setItem(KEYS.IMG, JSON.stringify(data));
+    }
+  });
 }
 
 // Real-time сонсох
@@ -2799,6 +2822,22 @@ function listenCloudChanges(){
       populateSelects();
     }
   });
+  fbDB.ref('imgMap').on('value', snap => {
+    const data = snap.val();
+    if(data){
+      localStorage.setItem(KEYS.IMG, JSON.stringify(data));
+      // Нээлттэй байгаа дэлгэрэнгүй/тайлангийн дэлгэцийг зурагтай нь шинэчилнэ
+      if(typeof renderAssets==='function') renderAssets();
+    }
+  });
+}
+
+// Зургийн харгалзаа (QR → Drive file id)-г Cloud руу push хийх.
+// imgMap нь id-тай мөрүүдийн массив биш, шууд {qrSuffix: fileId} обьект тул
+// pushToCloud-оос тусад нь бичив.
+function pushImgMapToCloud(imgMap){
+  if(!fbDB) return;
+  fbDB.ref('imgMap').set(imgMap).catch(e => console.log('Sync алдаа:', e));
 }
 
 // localStorage → Cloud push хийх
@@ -2843,9 +2882,11 @@ function pushAllToCloud(){
   const assets = JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');
   const users = JSON.parse(localStorage.getItem(KEYS.USERS)||'[]');
   const txs = JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
+  const imgMap = JSON.parse(localStorage.getItem(KEYS.IMG)||'{}');
   pushToCloud(KEYS.ASSETS, assets);
   pushToCloud(KEYS.USERS, users);
   pushToCloud(KEYS.TX, txs);
+  if(Object.keys(imgMap).length) pushImgMapToCloud(imgMap);
   setTimeout(()=>updateSyncUI('🟢 Cloud-д хадгалагдлаа ✅'), 2000);
 }
 
