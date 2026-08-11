@@ -1646,7 +1646,7 @@ function showAssetDetail(id){
   const txs=getTx({assetId:a.id}).slice(0,5);
 
   // Зураг
-  const imgUrl=getAssetImage(a.qr);
+  const imgUrl=getAssetImage(a.qr, a.id);
   const imgHtml=imgUrl
     ?`<div style="text-align:center;margin-bottom:16px">
         <img src="${imgUrl}" alt="${a.name}" style="max-width:100%;max-height:220px;border-radius:10px;object-fit:contain;border:1px solid var(--border)"
@@ -2655,7 +2655,15 @@ function confirmClearAll(){
   location.reload();
 }
 
-function getAssetImage(qrId){
+function getAssetImage(qrId, assetId){
+  // 1) Нярав гар утаснаасаа авсан, Cloud-оор sync хийгдсэн зураг (base64)
+  if(assetId){
+    try{
+      const localMap=JSON.parse(localStorage.getItem('ams_img_local')||'{}');
+      if(localMap[assetId]) return localMap[assetId];
+    }catch(e){}
+  }
+  // 2) image_matcher.html хэрэгслээр Google Drive-тай тааруулсан зураг
   try{
     const imgMap=JSON.parse(localStorage.getItem(KEYS.IMG)||'{}');
     const fileId=imgMap[qrId.replace('QR-','')];
@@ -2788,6 +2796,12 @@ function pullFromCloud(){
       localStorage.setItem(KEYS.IMG, JSON.stringify(data));
     }
   });
+  fbDB.ref('images').once('value').then(snap => {
+    const data = snap.val();
+    if(data){
+      localStorage.setItem('ams_img_local', JSON.stringify(data));
+    }
+  });
 }
 
 // Real-time сонсох
@@ -2827,6 +2841,13 @@ function listenCloudChanges(){
     if(data){
       localStorage.setItem(KEYS.IMG, JSON.stringify(data));
       // Нээлттэй байгаа дэлгэрэнгүй/тайлангийн дэлгэцийг зурагтай нь шинэчилнэ
+      if(typeof renderAssets==='function') renderAssets();
+    }
+  });
+  fbDB.ref('images').on('value', snap => {
+    const data = snap.val();
+    if(data){
+      localStorage.setItem('ams_img_local', JSON.stringify(data));
       if(typeof renderAssets==='function') renderAssets();
     }
   });
