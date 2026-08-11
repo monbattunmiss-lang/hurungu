@@ -406,10 +406,11 @@ tr:hover td{background:#FAFBFC}
             <option value="Үндсэн">Үндсэн</option>
           </select>
           <select class="form-input" id="assetStatusF" onchange="renderAssets()" style="width:auto">
-            <option value="">Бүх статус</option>
-            <option value="Сайн">Сайн</option>
-            <option value="Дутуу">Дутуу</option>
-            <option value="Засварт">Засварт</option>
+            <option value="">Бүх зэрэглэл</option>
+            <option value="1-р зэрэг">1-р зэрэг</option>
+            <option value="2-р зэрэг">2-р зэрэг</option>
+            <option value="3-р зэрэг">3-р зэрэг</option>
+            <option value="4-р зэрэг">4-р зэрэг</option>
           </select>
           <button class="btn btn-primary" id="addAssetBtn" onclick="openAssetModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -425,7 +426,7 @@ tr:hover td{background:#FAFBFC}
           <table>
             <thead><tr>
               <th>QR код</th><th>Нэр</th><th>Төрөл</th><th>Харьяа алба</th>
-              <th>Тоо хэмжээ</th><th>Нярав</th><th>Данс №</th><th>Статус</th><th>Үйлдэл</th>
+              <th>Тоо хэмжээ</th><th>Нярав</th><th>Данс №</th><th>Зэрэглэл</th><th>Үйлдэл</th>
             </tr></thead>
             <tbody id="assetTableBody"></tbody>
           </table>
@@ -784,9 +785,9 @@ tr:hover td{background:#FAFBFC}
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Статус</label>
+      <label class="form-label">Зэрэглэл <span style="font-size:11px;color:var(--muted)">(Хөрөнгийн актлах журмын дагуу)</span></label>
       <select class="form-input" id="af-status">
-        <option value="Сайн">Сайн</option><option value="Дутуу">Дутуу</option><option value="Засварт">Засварт</option>
+        <option value="1-р зэрэг">1-р зэрэг</option><option value="2-р зэрэг">2-р зэрэг</option><option value="3-р зэрэг">3-р зэрэг</option><option value="4-р зэрэг">4-р зэрэг — актлах</option>
       </select>
     </div>
     <div class="form-group">
@@ -979,7 +980,7 @@ function seedAssets(){
   ];
   const whs=['w1','w2','w3','w4'];
   const users=['u1','u2','u3','u4','u5','u6'];
-  const statuses=['Сайн','Сайн','Сайн','Сайн','Дутуу','Засварт'];
+  const statuses=['1-р зэрэг','1-р зэрэг','1-р зэрэг','2-р зэрэг','2-р зэрэг','3-р зэрэг'];
   let idx=1;
   for(let d of data){
     for(let n=1;n<=8;n++){
@@ -1385,7 +1386,7 @@ function printSelectedTx(){
 function renderDashboard(){
   const u=currentUser();
   const allAssets=getAssets();
-  const warnAssets=allAssets.filter(a=>a.status!=='Сайн');
+  const warnAssets=allAssets.filter(a=>a.status!=='1-р зэрэг');
   const today=new Date().toISOString().split('T')[0];
   const todayTx=getTx({date:today});
 
@@ -1419,9 +1420,10 @@ function renderDashboard(){
 
   // Alerts
   const alerts=[];
-  if(warnAssets.length>0) alerts.push(`<div class="alert alert-warn"><span>⚠</span> ${warnAssets.filter(a=>a.status==='Дутуу').length} хөрөнгийн үлдэгдэл дутуу байна</div>`);
-  const repair=allAssets.filter(a=>a.status==='Засварт');
-  if(repair.length>0) alerts.push(`<div class="alert alert-danger"><span>🔧</span> ${repair.length} хөрөнгө засварт байна: ${repair.slice(0,2).map(a=>a.name).join(', ')}</div>`);
+  const grade3=allAssets.filter(a=>a.status==='3-р зэрэг');
+  const grade4=allAssets.filter(a=>a.status==='4-р зэрэг');
+  if(grade4.length>0) alerts.push(`<div class="alert alert-danger"><span>🚨</span> ${grade4.length} хөрөнгө <strong>4-р зэрэгт</strong> байна — актлах шийдвэр гаргуулахаар яаманд хүргүүлэх шаардлагатай: ${grade4.slice(0,2).map(a=>a.name).join(', ')}</div>`);
+  if(grade3.length>0) alerts.push(`<div class="alert alert-warn"><span>🔧</span> ${grade3.length} хөрөнгө 3-р зэрэгт (элэгдэл ихтэй, засвар шаардлагатай) байна</div>`);
   alerts.push(`<div class="alert alert-ok"><span>✅</span> Өнөөдөр ${todayTx.length} гүйлгээ бүртгэгдсэн</div>`);
   alerts.push(`<div class="alert alert-info"><span>📱</span> Гар утасны апп: <strong>asset-mobile.html</strong> файлыг нээнэ үү</div>`);
   document.getElementById('alerts').innerHTML=alerts.join('');
@@ -1500,7 +1502,7 @@ function renderAssetPage(){
   const tbody=document.getElementById('assetTableBody');
   tbody.innerHTML=page.map(a=>{
     const usr=users.find(x=>x.id===a.userId);
-    const badgeClass={Сайн:'b-ok',Дутуу:'b-warn',Засварт:'b-danger'}[a.status]||'b-gray';
+    const badgeClass={'1-р зэрэг':'b-ok','2-р зэрэг':'b-info','3-р зэрэг':'b-warn','4-р зэрэг':'b-danger'}[a.status]||'b-gray';
     const typeClass=a.type==='Эргэлтийн'?'b-info':'b-ok';
     const naraaDisplay=a.naraaType
       ? `${a.naraaName||''}<br><span style="font-size:10px;color:var(--muted)">${NARAA_EMOJI[a.naraaType]||''} ${a.naraaType}</span>`
@@ -1569,7 +1571,7 @@ function openAssetModal(id){
     document.getElementById('af-cat').value='';
     document.getElementById('af-qty').value='1';
     document.getElementById('af-price').value='0';
-    document.getElementById('af-status').value='Сайн';
+    document.getElementById('af-status').value='1-р зэрэг';
     document.getElementById('af-user').value='';
     if(delBtn) delBtn.style.display='none';
   }
@@ -1650,7 +1652,7 @@ function showAssetDetail(id){
   const whs=getWH(); const users=getUsers();
   const wh=whs.find(w=>w.id===a.warehouseId);
   const usr=users.find(u=>u.id===a.userId);
-  const badgeClass={Сайн:'b-ok',Дутуу:'b-warn',Засварт:'b-danger'}[a.status]||'b-gray';
+  const badgeClass={'1-р зэрэг':'b-ok','2-р зэрэг':'b-info','3-р зэрэг':'b-warn','4-р зэрэг':'b-danger'}[a.status]||'b-gray';
   const txs=getTx({assetId:a.id}).slice(0,5);
 
   // Зураг
@@ -1667,7 +1669,7 @@ function showAssetDetail(id){
     <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">${a.name}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;font-size:13px">
       <div><div style="color:var(--muted);font-size:11px">QR код</div><code style="background:var(--bg);padding:3px 8px;border-radius:5px;font-size:12px">${a.qr}</code></div>
-      <div><div style="color:var(--muted);font-size:11px">Статус</div><span class="badge ${badgeClass}">${a.status}</span></div>
+      <div><div style="color:var(--muted);font-size:11px">Зэрэглэл</div><span class="badge ${badgeClass}">${a.status}</span></div>
       <div><div style="color:var(--muted);font-size:11px">Төрөл</div>${a.type}</div>
       <div><div style="color:var(--muted);font-size:11px">Категори</div>${a.category||'—'}</div>
       <div><div style="color:var(--muted);font-size:11px">Тоо хэмжээ</div><strong>${a.qty} ${a.unit||''}</strong></div>
@@ -1714,7 +1716,7 @@ function searchAssetForTx(){
     <div onclick="selectTxAsset('${a.id}')" style="padding:8px;border:1px solid ${selectedTxAsset&&selectedTxAsset.id===a.id?'var(--blue)':'var(--border)'};border-radius:8px;cursor:pointer;margin-bottom:6px;display:flex;align-items:center;gap:10px;background:${selectedTxAsset&&selectedTxAsset.id===a.id?'var(--blue-l)':'var(--surface)'}">
       <code style="font-size:11px;background:var(--bg);padding:2px 6px;border-radius:4px;flex-shrink:0">${a.qr}</code>
       <div style="flex:1"><div style="font-size:13px;font-weight:500">${a.name}</div><div style="font-size:11px;color:var(--muted)">${a.qty} ${a.unit||''} үлдэгдэл</div></div>
-      <span class="badge ${a.status==='Сайн'?'b-ok':a.status==='Дутуу'?'b-warn':'b-danger'}">${a.status}</span>
+      <span class="badge ${({'1-р зэрэг':'b-ok','2-р зэрэг':'b-info','3-р зэрэг':'b-warn','4-р зэрэг':'b-danger'})[a.status]||'b-gray'}">${a.status}</span>
     </div>`).join('');
 }
 function selectTxAsset(id){
@@ -2188,7 +2190,7 @@ function renderInventory(){
     <div class="report-meta">
       <div class="report-meta-item"><div class="report-meta-label">Нийт хөрөнгийн тоо</div><div class="report-meta-value">${assets.length}</div></div>
       <div class="report-meta-item"><div class="report-meta-label">Нийт дүн</div><div class="report-meta-value">${totalVal.toLocaleString()}₮</div></div>
-      <div class="report-meta-item"><div class="report-meta-label">Дутуу / Засварт</div><div class="report-meta-value" style="color:var(--amber)">${assets.filter(a=>a.status!=='Сайн').length}</div></div>
+      <div class="report-meta-item"><div class="report-meta-label">3-р / 4-р зэрэгт</div><div class="report-meta-value" style="color:var(--amber)">${assets.filter(a=>a.status==='3-р зэрэг'||a.status==='4-р зэрэг').length}</div></div>
     </div>
   </div>`;
 
@@ -2440,9 +2442,9 @@ function processFile(file){
     document.getElementById('importRowCount').textContent=(json.length-1)+' мөр илэрлэлт';
     const headers=json[0];
     document.getElementById('columnMap').innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">Баганууд (${headers.length}):</div>`+
-      headers.map((h,i)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px"><code style="background:var(--bg);padding:2px 8px;border-radius:4px;min-width:80px">${h||'Баган '+(i+1)}</code><span style="color:var(--muted)">→</span><select class="form-input" id="col-${i}" style="flex:1"><option value="">Хамааралгүй</option><option value="name">Нэр</option><option value="type">Төрөл</option><option value="category">Категори</option><option value="qty">Тоо</option><option value="unit">Нэгж</option><option value="price">Үнэ</option><option value="warehouseName">Агуулах</option><option value="userName">Нярав</option><option value="status">Статус</option><option value="note">Тэмдэглэл</option></select></div>`).join('');
+      headers.map((h,i)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px"><code style="background:var(--bg);padding:2px 8px;border-radius:4px;min-width:80px">${h||'Баган '+(i+1)}</code><span style="color:var(--muted)">→</span><select class="form-input" id="col-${i}" style="flex:1"><option value="">Хамааралгүй</option><option value="name">Нэр</option><option value="type">Төрөл</option><option value="category">Категори</option><option value="qty">Тоо</option><option value="unit">Нэгж</option><option value="price">Үнэ</option><option value="warehouseName">Агуулах</option><option value="userName">Нярав</option><option value="status">Зэрэглэл</option><option value="note">Тэмдэглэл</option></select></div>`).join('');
     // Auto-map common headers
-    const autoMap={нэр:'name',name:'name',төрөл:'type',type:'type',тоо:'qty',qty:'qty',quantity:'qty',үнэ:'price',price:'price',нярав:'userName',агуулах:'warehouseName',warehouse:'warehouseName',статус:'status',категори:'category',нэгж:'unit',unit:'unit'};
+    const autoMap={нэр:'name',name:'name',төрөл:'type',type:'type',тоо:'qty',qty:'qty',quantity:'qty',үнэ:'price',price:'price',нярав:'userName',агуулах:'warehouseName',warehouse:'warehouseName',статус:'status',зэрэглэл:'status',категори:'category',нэгж:'unit',unit:'unit'};
     headers.forEach((h,i)=>{const k=String(h).toLowerCase().trim();if(autoMap[k]){const sel=document.getElementById('col-'+i);if(sel)sel.value=autoMap[k];}});
     document.getElementById('importPreview').style.display='';
   };
@@ -2486,7 +2488,7 @@ function doImport(){
       price:map.price!=null?parseInt(row[map.price])||0:0,
       warehouseId:wh?wh.id:null,
       userId:usr?usr.id:null,
-      status:map.status!=null?String(row[map.status]||'Сайн').trim():'Сайн',
+      status:map.status!=null?String(row[map.status]||'1-р зэрэг').trim():'1-р зэрэг',
       note:map.note!=null?String(row[map.note]||'').trim():'',
       createdAt:new Date().toISOString(),
       lastChecked:new Date().toISOString(),
@@ -2511,10 +2513,10 @@ function resetImport(){
 }
 function downloadTemplate(){
   const ws=XLSX.utils.aoa_to_sheet([
-    ['Нэр','Төрөл','Харьяа алба','Тоо хэмжээ','Нэгж','Үнэ','Агуулах','Нярав','Статус','Тэмдэглэл'],
-    ['Компьютер Dell','Үндсэн','Санхүүгийн тасаг','3','ширхэг','1200000','7-р агуулах','Б.Болд (Холбооны нярав)','Сайн',''],
-    ['А4 цаас','Эргэлтийн','Сургалтын тасаг','20','боодол','15000','1-р агуулах','С.Мөнх (Зэвсгийн нярав)','Сайн',''],
-    ['Ширээ','Үндсэн','1-р рот','5','ширхэг','350000','3-р агуулах','Д.Ариун (Хүнсний нярав)','Сайн',''],
+    ['Нэр','Төрөл','Харьяа алба','Тоо хэмжээ','Нэгж','Үнэ','Агуулах','Нярав','Зэрэглэл','Тэмдэглэл'],
+    ['Компьютер Dell','Үндсэн','Санхүүгийн тасаг','3','ширхэг','1200000','7-р агуулах','Б.Болд (Холбооны нярав)','1-р зэрэг',''],
+    ['А4 цаас','Эргэлтийн','Сургалтын тасаг','20','боодол','15000','1-р агуулах','С.Мөнх (Зэвсгийн нярав)','1-р зэрэг',''],
+    ['Ширээ','Үндсэн','1-р рот','5','ширхэг','350000','3-р агуулах','Д.Ариун (Хүнсний нярав)','1-р зэрэг',''],
   ]);
   // Column widths
   ws['!cols']=[{wch:25},{wch:12},{wch:28},{wch:10},{wch:8},{wch:10},{wch:14},{wch:28},{wch:10},{wch:20}];
@@ -2524,7 +2526,7 @@ function downloadTemplate(){
 function exportExcel(){
   const assets=getAssets();
   const whs=getWH();const users=getUsers();
-  const rows=[['QR код','Нэр','Төрөл','Категори','Тоо','Нэгж','Үнэ','Агуулах','Нярав','Статус']];
+  const rows=[['QR код','Нэр','Төрөл','Категори','Тоо','Нэгж','Үнэ','Агуулах','Нярав','Зэрэглэл']];
   assets.forEach(a=>{
     const wh=whs.find(w=>w.id===a.warehouseId);
     const usr=users.find(u=>u.id===a.userId);
