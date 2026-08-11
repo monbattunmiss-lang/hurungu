@@ -884,6 +884,16 @@ function renderAssets(){
 
 // ── DETAIL ──
 let currentDetailId=null;
+// Зураг ачаалагдахгүй үед (жишээ нь Google Drive-ийн файл "Anyone with the link"
+// төрлөөр нээлттэй хуваалцаагүй бол 403 алдаа өгдөг тул) чимээгүйхэн нуухын оронд,
+// шалтгааныг тодорхой харуулна — эс тэгвэл асуудлыг олж мэдэхэд хэцүү байдаг.
+function handleImgLoadError(imgEl){
+  const isDrive=(imgEl.src||'').indexOf('drive.google.com')!==-1;
+  const msg=isDrive
+    ? '⚠️ Зураг ачаалагдсангүй. Google Drive дэх энэ файл эсвэл фолдер "Хэн ч холбоосоор нээж болно" (Anyone with the link) төрлөөр нээлттэй хуваалцсан эсэхийг шалгана уу.'
+    : '⚠️ Зураг ачаалагдсангүй.';
+  imgEl.outerHTML=`<div style="padding:14px;background:#FFF3E0;color:#92400E;font-size:12px;text-align:center;border-radius:10px;margin:12px 16px">${msg}</div>`;
+}
 function showDetail(id){
   currentDetailId=id;
   const a=get(KEYS.A).find(x=>x.id===id);
@@ -898,7 +908,7 @@ function showDetail(id){
 
   document.getElementById('detailTitle').textContent=a.name;
   document.getElementById('detailBody').innerHTML=`
-    ${imgUrl?`<img src="${imgUrl}" class="detail-img" onerror="this.style.display='none'" alt="${a.name}">`:''}
+    ${imgUrl?`<img src="${imgUrl}" class="detail-img" onerror="handleImgLoadError(this)" alt="${a.name}">`:''}
     <div class="detail-body">
       <div class="detail-qr">${a.qr}</div>
       <div class="detail-name">${a.name}</div>

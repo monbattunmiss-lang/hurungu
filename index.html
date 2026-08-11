@@ -1633,6 +1633,16 @@ function saveAsset(){
 }
 
 let currentDetailAssetId=null;
+// Зураг ачаалагдахгүй үед (жишээ нь Google Drive-ийн файл "Anyone with the link"
+// төрлөөр нээлттэй хуваалцаагүй бол 403 алдаа өгдөг тул) чимээгүйхэн нуухын оронд,
+// шалтгааныг тодорхой харуулна.
+function handleImgLoadError(imgEl){
+  const isDrive=(imgEl.src||'').indexOf('drive.google.com')!==-1;
+  const msg=isDrive
+    ? '⚠️ Зураг ачаалагдсангүй. Google Drive дэх энэ файл эсвэл фолдер "Хэн ч холбоосоор нээж болно" (Anyone with the link) төрлөөр нээлттэй хуваалцсан эсэхийг шалгана уу.'
+    : '⚠️ Зураг ачаалагдсангүй.';
+  imgEl.outerHTML=`<div style="padding:14px;background:var(--orange-l,#FFF3E0);color:var(--orange,#92400E);font-size:12px;text-align:center;border-radius:10px;margin-bottom:16px">${msg}</div>`;
+}
 function showAssetDetail(id){
   currentDetailAssetId=id;
   const a=getAssets().find(x=>x.id===id);
@@ -1648,7 +1658,7 @@ function showAssetDetail(id){
   const imgHtml=imgUrl
     ?`<div style="text-align:center;margin-bottom:16px">
         <img src="${imgUrl}" alt="${a.name}" style="max-width:100%;max-height:220px;border-radius:10px;object-fit:contain;border:1px solid var(--border)"
-        onerror="this.style.display='none'">
+        onerror="handleImgLoadError(this)">
       </div>`
     :'';
 
