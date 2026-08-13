@@ -1034,7 +1034,7 @@ function initDB(){
 }
 const getWH=()=>JSON.parse(localStorage.getItem(KEYS.WH)||'[]');
 const getUsers=()=>JSON.parse(localStorage.getItem(KEYS.USERS)||'[]');
-const saveUsers=u=>localStorage.setItem(KEYS.USERS,JSON.stringify(u));
+const saveUsers=u=>{localStorage.setItem(KEYS.USERS,JSON.stringify(u));if(typeof pushToCloud==='function')pushToCloud(KEYS.USERS,u);};
 const getAssets=(f={})=>{
   let l=JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');
   if(f.type)l=l.filter(a=>a.type===f.type);
@@ -3006,13 +3006,7 @@ function pushToCloud(key, data){
   fbDB.ref(refName).set(obj).catch(e => console.log('Sync алдаа:', e));
 }
 
-// saveAssets аль хэдийн cloud руу push хийдэг (дээрх тодорхойлолтод)
-
-// saveUsers-г cloud-той sync хийдэг болгох
-window.saveUsers = function(u){
-  localStorage.setItem(KEYS.USERS, JSON.stringify(u));
-  pushToCloud(KEYS.USERS, u);
-};
+// saveAssets, saveUsers аль хэдийн cloud руу push хийдэг (дээрх тодорхойлолтод)
 
 // addTxDB дуудсаны дараа cloud руу push хийх (assets+tx)
 function addTxAndSync(tx){
