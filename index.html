@@ -1758,6 +1758,19 @@ function addTransaction(){
   const type=document.getElementById('txType').value;
   const qty=parseInt(document.getElementById('txQty').value)||1;
   const note=document.getElementById('txNote').value;
+  // Зарлага гаргахаас өмнө үлдэгдлийг шалгана — үлдэгдэл байхгүй бол гүйлгээ хийхгүй
+  if(type==='expense'){
+    const curAsset=getAssets().find(a=>a.id===selectedTxAsset.id);
+    const avail=curAsset?curAsset.qty:0;
+    if(avail<=0){
+      alert(`⚠️ Үлдэгдэл дууссан байна!\n\n"${selectedTxAsset.name}" хөрөнгийн үлдэгдэл 0 тул зарлага гүйлгээ хийх боломжгүй.`);
+      return;
+    }
+    if(qty>avail){
+      alert(`⚠️ Үлдэгдэл хүрэлцэхгүй байна!\n\n"${selectedTxAsset.name}" хөрөнгийн одоогийн үлдэгдэл: ${avail}\nТа ${qty} гаргахыг оролдож байна.\n\nҮлдэгдлээс их хэмжээгээр зарлага гаргах боломжгүй.`);
+      return;
+    }
+  }
   addTxAndSync({assetId:selectedTxAsset.id,assetName:selectedTxAsset.name,assetQR:selectedTxAsset.qr,userId:u.id,userName:u.name,type,qty,note});
   selectedTxAsset=null;
   document.getElementById('txSearch').value='';
