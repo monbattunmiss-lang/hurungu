@@ -274,7 +274,7 @@ tr:hover td{background:#FAFBFC}
     <div class="sidebar" id="sidebar">
       <div style="padding:12px 8px 4px">
         <div class="nav-section">Үндсэн</div>
-        <button class="nav-item active" data-page="dashboard">
+        <button class="nav-item active" data-page="dashboard" id="navDashboard">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
           Хянах самбар
         </button>
@@ -283,7 +283,7 @@ tr:hover td{background:#FAFBFC}
           Хөрөнгийн бүртгэл
           <span class="nav-badge" id="warnCount" style="display:none">0</span>
         </button>
-        <button class="nav-item" data-page="transactions">
+        <button class="nav-item" data-page="transactions" id="navTx">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
           Орлого / Зарлага
         </button>
@@ -292,7 +292,7 @@ tr:hover td{background:#FAFBFC}
           QR Хэвлэх
         </button>
         <div class="nav-section">Тайлан</div>
-        <button class="nav-item" data-page="report-daily">
+        <button class="nav-item" data-page="report-daily" id="navReportDaily">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           Өдрийн тайлан
         </button>
@@ -840,6 +840,7 @@ tr:hover td{background:#FAFBFC}
           <option value="naraa">Нярав</option>
           <option value="nyagtlan">Нягтлан</option>
           <option value="darga">Санхүүгийн дарга</option>
+          <option value="inspector">Хянагч</option>
         </select>
       </div>
       <div class="form-group"><label class="form-label">PIN код (4 тоо) *</label><input class="form-input" type="password" id="uf-pin" maxlength="4" placeholder="****"></div>
@@ -1120,12 +1121,12 @@ function initLogin(){
   const users=getUsers();
   const sel=document.getElementById('userSelect');
   sel.innerHTML='';
-  const labels={naraa:'Нярав',nyagtlan:'Нягтлан',darga:'Санхүүгийн дарга'};
+  const labels={naraa:'Нярав',nyagtlan:'Нягтлан',darga:'Санхүүгийн дарга',inspector:'Хянагч'};
   users.filter(u=>u.active).forEach(u=>{
     const btn=document.createElement('button');
     btn.className='user-select-btn';
     btn.dataset.id=u.id;
-    const emoji={naraa:'👤',nyagtlan:'📊',darga:'👔'}[u.role];
+    const emoji={naraa:'👤',nyagtlan:'📊',darga:'👔',inspector:'🕵️'}[u.role];
     const roleDisplay=u.naraaType||labels[u.role];
     btn.innerHTML=`<div style="font-size:18px">${emoji}</div><div class="uname">${u.name}</div><div class="urole">${roleDisplay}</div>`;
     btn.onclick=()=>{
@@ -1212,7 +1213,7 @@ function startApp(){
 
   // Topbar
   document.getElementById('topbarName').textContent=u.name;
-  document.getElementById('topbarRole').textContent={naraa:'Нярав',nyagtlan:'Нягтлан',darga:'Санхүүгийн дарга'}[u.role];
+  document.getElementById('topbarRole').textContent={naraa:'Нярав',nyagtlan:'Нягтлан',darga:'Санхүүгийн дарга',inspector:'Хянагч'}[u.role];
   document.getElementById('topbarAvatar').textContent=u.name.split('.').map(p=>p[0]).join('');
   // Date
   document.getElementById('topbarDate').textContent=new Date().toLocaleDateString('mn-MN',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
@@ -1222,6 +1223,15 @@ function startApp(){
     document.getElementById('adminNav').style.display='';
     document.getElementById('importNav').style.display='';
     document.getElementById('usersNav').style.display=u.role==='darga'?'':'none';
+  }
+
+  // Хянагч — дээд шатны байгууллагад зориулсан зөвхөн харах эрхтэй цонх.
+  // Зөвхөн "Хөрөнгийн бүртгэл", "QR Хэвлэх", "Хөрөнгийн тооллого" 3 цэс дээр ажиллана.
+  if(u.role==='inspector'){
+    ['navDashboard','navTx','navReportDaily'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.style.display='none';
+    });
   }
 
   // Populate selects
@@ -1235,6 +1245,11 @@ function startApp(){
   renderUsers();
   renderQRGrid();
   renderQRBasket();
+
+  // Хянагч Хянах самбар харагдахгүй тул шууд Хөрөнгийн бүртгэл рүү оруулна
+  if(u.role==='inspector'){
+    navTo('assets', null);
+  }
 }
 
 function populateSelects(){
@@ -1467,7 +1482,7 @@ function renderAssets(){
   assetPage=0;
   const u=currentUser();
   const addBtn=document.getElementById('addAssetBtn');
-  if(addBtn) addBtn.style.display=u&&u.role==='naraa'?'none':'';
+  if(addBtn) addBtn.style.display=(u&&(u.role==='naraa'||u.role==='inspector'))?'none':'';
   renderAssetPage();
 }
 function renderAssetPage(){
@@ -1508,8 +1523,8 @@ function renderAssetPage(){
       ? `${a.naraaName||''}<br><span style="font-size:10px;color:var(--muted)">${NARAA_EMOJI[a.naraaType]||''} ${a.naraaType}</span>`
       : (a.naraaName||usr?.name||'—');
 
-    // Нярав бол зөвхөн өөрийн хөрөнгийг засаж чадна
-    const canEdit = u.role!=='naraa' || a.naraaName===u.naraaType || a.naraaType===u.naraaType;
+    // Нярав бол зөвхөн өөрийн хөрөнгийг засаж чадна; хянагч бол огт засварлаж чадахгүй
+    const canEdit = u.role==='inspector' ? false : (u.role!=='naraa' || a.naraaName===u.naraaType || a.naraaType===u.naraaType);
 
     return`<tr>
       <td><code style="font-size:11px;background:var(--bg);padding:2px 6px;border-radius:5px;cursor:pointer" onclick="showAssetDetail('${a.id}')">${a.qr}</code></td>
@@ -1535,6 +1550,11 @@ function renderAssetPage(){
 }
 
 function openAssetModal(id){
+  const u0=currentUser();
+  if(u0 && u0.role==='inspector'){
+    // Хянагч зөвхөн харах эрхтэй тул засварлах маягтыг нээхгүй
+    return;
+  }
   const whs=getWH();
   document.getElementById('af-warehouse').innerHTML='<option value="">— Сонгох —</option>'+whs.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');
   // af-user нь HTML-д статикаар бичигдсэн — дахин дүүргэхгүй
@@ -1690,7 +1710,16 @@ function showAssetDetail(id){
         <div class="tx-qty ${t.type==='income'?'in':'out'}">${t.type==='check'?'—':(t.type==='income'?'+':'-')+t.qty}</div>
       </div>`).join('')}
   `;
-  document.getElementById('assetDetailEditBtn').onclick=()=>{closeModal('assetDetailModal');openAssetModal(id);};
+  const editBtn=document.getElementById('assetDetailEditBtn');
+  const curU=currentUser();
+  if(editBtn){
+    if(curU && curU.role==='inspector'){
+      editBtn.style.display='none';
+    }else{
+      editBtn.style.display='';
+      editBtn.onclick=()=>{closeModal('assetDetailModal');openAssetModal(id);};
+    }
+  }
   openModal('assetDetailModal');
 }
 
@@ -2543,8 +2572,8 @@ function exportExcel(){
 
 function renderUsers(){
   const users=getUsers();const whs=getWH();
-  const labels={naraa:'Нярав',nyagtlan:'Нягтлан',darga:'Санхүүгийн дарга'};
-  const colors={naraa:'b-info',nyagtlan:'b-warn',darga:'b-ok'};
+  const labels={naraa:'Нярав',nyagtlan:'Нягтлан',darga:'Санхүүгийн дарга',inspector:'Хянагч'};
+  const colors={naraa:'b-info',nyagtlan:'b-warn',darga:'b-ok',inspector:'b-gray'};
   document.getElementById('usersTableBody').innerHTML=users.map(u=>{
     const wh=whs.find(w=>w.id===u.warehouseId);
     const emoji=u.naraaType?NARAA_EMOJI[u.naraaType]||'👤':'';
