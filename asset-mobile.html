@@ -689,12 +689,21 @@ function addTx(tx){
   // Update asset qty
   const assets=get(KEYS.A);
   const ai=assets.findIndex(a=>a.id===tx.assetId);
+  let touchedAsset=null;
   if(ai>=0){
     if(tx.type==='income')assets[ai].qty+=tx.qty;
     else if(tx.type==='expense')assets[ai].qty=Math.max(0,assets[ai].qty-tx.qty);
     assets[ai].lastChecked=Date.now();
     save(KEYS.A,assets);
+    touchedAsset=assets[ai];
   }
+  // Cloud руу зөвхөн энэ ганц гүйлгээ + өөрчлөгдсөн ганц хөрөнгийг илгээнэ —
+  // бүтэн жагсаалтыг дахин бичихгүй тул өөр няравын зэрэгцээ өөрчлөлтийг дарахгүй
+  if(typeof pushSingleRecordToCloud==='function'){
+    pushSingleRecordToCloud('transactions', tx);
+    if(touchedAsset) pushSingleRecordToCloud('assets', touchedAsset);
+  }
+  return touchedAsset;
 }
 function getImgUrl(qr,assetId){
   // First check local images (Cloud-с sync хийгдсэн эсвэл энэ төхөөрөмж дээр авсан)
@@ -1089,7 +1098,6 @@ function submitIncome(){
   if(incImg){
     saveAssetImage(newId, incImg);
   }
-  if(typeof pushToCloud==='function'){pushToCloud('assets',assets);pushToCloud('transactions',get(KEYS.T));}
   closeIncome();
   showToast('✅ '+name+' бүртгэгдлээ! QR: '+qr);
   renderHome();if(curTab==='assets')renderAssets();
@@ -1162,7 +1170,6 @@ function submitExpense(){
   if(expImg){
     saveAssetImage(a.id, expImg);
   }
-  if(typeof pushToCloud==='function'){pushToCloud('assets',get(KEYS.A));pushToCloud('transactions',get(KEYS.T));}
   const expAssetSnap=a.id,expQtySnap=qty,expNoteSnap=note;
   closeExpense();closeDetail();
   showToast('✅ Зарлага бүртгэгдлээ');
@@ -1194,7 +1201,6 @@ function submitTx(){
   const u=currentUser();
   const note=document.getElementById('txNote').value;
   addTx({assetId:a.id,assetName:a.name,assetQR:a.qr,userId:u.id,userName:u.name,type:'check',qty:0,note});
-  if(typeof pushToCloud==='function')pushToCloud('transactions',get(KEYS.T));
   closeTx();closeDetail();
   showToast('✅ QR шалгалт бүртгэгдлээ');
   renderHome();
@@ -1279,8 +1285,8 @@ function saveNewAsset(){
     saveAssetImage(newId, naImg);
   }
 
-  // Firebase-д push хийх
-  if(typeof pushToCloud==='function')pushToCloud('assets',assets);
+  // Firebase-д push хийх — зөвхөн шинээр үүссэн ганц хөрөнгийг
+  if(typeof pushSingleRecordToCloud==='function')pushSingleRecordToCloud('assets',asset);
 
   closeNewAsset();
   showToast('✅ '+name+' бүртгэгдлээ! QR: '+qr);
@@ -1430,17 +1436,19 @@ function listenCloud(){
 function pushToCloud(ref,arr){
   if(!fbDB)return;
   const obj={};arr.forEach(i=>{obj[i.id]=i;});
-  fbDB.ref(ref).set(obj).catch(e=>console.log(e));
+  // .set() бол бүх зангилааг орлуулдаг тул зэрэгцээ өөр төхөөрөмж дээр нэмэгдсэн
+  // бичлэгийг устгачихдаг эрсдэлтэй. .update() илүү аюулгүй.
+  fbDB.ref(ref).update(obj).catch(e=>console.log(e));
+}
+// Ганц бичлэгийг л Cloud руу илгээх — бүтэн жагсаалтыг дахин бичихгүй тул
+// өөр няравын утсан дээр зэрэгцээ хийгдэж буй өөрчлөлтийг дарж бичихгүй.
+function pushSingleRecordToCloud(ref,item){
+  if(!fbDB||!item||!item.id)return;
+  fbDB.ref(ref+'/'+item.id).set(item).catch(e=>console.log(e));
 }
 
-// Override addTx to also push to Firebase
-const _origAddTx=addTx;
-window.addTx=function(tx){
-  _origAddTx(tx);
-  const txs=get(KEYS.T);
-  pushToCloud('transactions',txs);
-  pushToCloud('assets',get(KEYS.A));
-};
+// addTx нь өөрөө дотроо Cloud руу зөвхөн ганц гүйлгээ + өөрчлөгдсөн ганц
+// хөрөнгийг илгээдэг тул энд дахин override хийх шаардлагагүй боллоо.
 
 // ── INIT ──
 initDB();

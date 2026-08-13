@@ -1053,7 +1053,14 @@ const getAssets=(f={})=>{
   return l;
 };
 const saveAssets=l=>{localStorage.setItem(KEYS.ASSETS,JSON.stringify(l));if(typeof pushToCloud==='function')pushToCloud(KEYS.ASSETS,l);};
-const upsertAsset=a=>{const l=JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');const i=l.findIndex(x=>x.id===a.id);if(i>=0)l[i]=a;else l.push(a);saveAssets(l);};
+const upsertAsset=a=>{
+  const l=JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');
+  const i=l.findIndex(x=>x.id===a.id);
+  if(i>=0)l[i]=a;else l.push(a);
+  localStorage.setItem(KEYS.ASSETS,JSON.stringify(l));
+  // Ганц хөрөнгийг л Cloud руу илгээнэ — бүтэн жагсаалтыг дахин бичихгүй
+  if(typeof pushSingleRecordToCloud==='function') pushSingleRecordToCloud('assets', a);
+};
 const getTx=(f={})=>{
   let l=JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
   if(f.userId)l=l.filter(t=>t.userId===f.userId);
@@ -1080,13 +1087,17 @@ const addTxDB=tx=>{
   localStorage.setItem(KEYS.TX,JSON.stringify(l));
   const al=JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');
   const ai=al.findIndex(a=>a.id===tx.assetId);
+  let touchedAsset=null;
   if(ai>=0){
     if(tx.type==='income')al[ai].qty+=tx.qty;
     if(tx.type==='expense')al[ai].qty=Math.max(0,al[ai].qty-tx.qty);
     al[ai].lastChecked=new Date().toISOString();
-    saveAssets(al);
+    // Зөвхөн localStorage-д хадгална — Cloud руу бол доор тухайн ганц хөрөнгийг л илгээнэ
+    // (бүх жагсаалтыг дахин бичвэл өөр төхөөрөнж дээрх зэрэгцээ хийсэн өөрчлөлтийг дарж бичих эрсдэлтэй)
+    localStorage.setItem(KEYS.ASSETS,JSON.stringify(al));
+    touchedAsset=al[ai];
   }
-  return ntx;
+  return {ntx,touchedAsset};
 };
 const currentUser=()=>JSON.parse(localStorage.getItem(KEYS.SESSION)||'null');
 const setSession=u=>localStorage.setItem(KEYS.SESSION,JSON.stringify(u));
@@ -3016,19 +3027,27 @@ function pushToCloud(key, data){
   // Array → object (id-ээр)
   const obj = {};
   data.forEach(item => { obj[item.id] = item; });
-  fbDB.ref(refName).set(obj).catch(e => console.log('Sync алдаа:', e));
+  // .set() бол бүх зангилааг бүрмөсөн орлуулдаг тул зэрэгцээ өөр төхөөрөмж дээр
+  // нэмэгдсэн бичлэгийг устгачихдаг эрсдэлтэй. .update() бол зөвхөн энд буй
+  // key-үүдийг л шинэчилж, бусдыг хэвээр үлдээдэг тул илүү аюулгүй.
+  fbDB.ref(refName).update(obj).catch(e => console.log('Sync алдаа:', e));
 }
 
 // saveAssets, saveUsers аль хэдийн cloud руу push хийдэг (дээрх тодорхойлолтод)
 
-// addTxDB дуудсаны дараа cloud руу push хийх (assets+tx)
+// Ганц бичлэгийг Cloud руу илгээх — бүтэн жагсаалтыг дахин бичихгүй тул
+// зэрэгцээ өөр төхөөрөмж дээр хийгдэж буй өөрчлөлтийг дарж бичихгүй.
+function pushSingleRecordToCloud(refName, item){
+  if(!fbDB || !item || !item.id) return;
+  fbDB.ref(refName+'/'+item.id).set(item).catch(e=>console.log('Sync алдаа:',e));
+}
+
+// addTxDB дуудсаны дараа cloud руу push хийх (зөвхөн шинэ гүйлгээ + өөрчлөгдсөн тухайн ганц хөрөнгө)
 function addTxAndSync(tx){
-  const result = addTxDB(tx);
-  const txs = JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
-  const assets = JSON.parse(localStorage.getItem(KEYS.ASSETS)||'[]');
-  pushToCloud(KEYS.TX, txs);
-  pushToCloud(KEYS.ASSETS, assets);
-  return result;
+  const {ntx,touchedAsset} = addTxDB(tx);
+  pushSingleRecordToCloud('transactions', ntx);
+  if(touchedAsset) pushSingleRecordToCloud('assets', touchedAsset);
+  return ntx;
 }
 
 // Cloud руу бүх өгөгдөл нэг удаа push хийх (анхны sync)
