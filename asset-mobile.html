@@ -479,13 +479,14 @@ window.jsQRReady = new Promise((resolve) => {
       <input id="na-accountno" type="text" placeholder="39... = Үндсэн, бусад = Эргэлтийн" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
     </div>
 
-    <!-- Статус -->
+    <!-- Зэрэглэл -->
     <div style="margin-bottom:12px">
-      <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Статус</label>
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Зэрэглэл</label>
       <select id="na-status" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
-        <option value="Сайн">Сайн</option>
-        <option value="Дутуу">Дутуу</option>
-        <option value="Засварт">Засварт</option>
+        <option value="1-р зэрэг">1-р зэрэг</option>
+        <option value="2-р зэрэг">2-р зэрэг</option>
+        <option value="3-р зэрэг">3-р зэрэг</option>
+        <option value="4-р зэрэг">4-р зэрэг</option>
       </select>
     </div>
 
@@ -529,11 +530,12 @@ window.jsQRReady = new Promise((resolve) => {
         </select>
       </div>
       <div>
-        <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Статус</label>
+        <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Зэрэглэл</label>
         <select id="inc-status" style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 10px;font-size:13px;background:#f9f9f9;color:#111;outline:none;font-family:inherit">
-          <option value="Сайн">Сайн</option>
-          <option value="Дутуу">Дутуу</option>
-          <option value="Засварт">Засварт</option>
+          <option value="1-р зэрэг">1-р зэрэг</option>
+          <option value="2-р зэрэг">2-р зэрэг</option>
+          <option value="3-р зэрэг">3-р зэрэг</option>
+          <option value="4-р зэрэг">4-р зэрэг</option>
         </select>
       </div>
     </div>
@@ -866,7 +868,7 @@ function renderAssets(){
   }
   el.innerHTML=assets.map(a=>{
     const wh=whs.find(w=>w.id===a.warehouseId);
-    const bc={Сайн:'b-ok',Дутуу:'b-warn',Засварт:'b-danger'}[a.status]||'b-ok';
+    const bc={'1-р зэрэг':'b-ok','2-р зэрэг':'b-info','3-р зэрэг':'b-warn','4-р зэрэг':'b-danger'}[a.status]||'b-ok';
     return`<div class="asset-row" onclick="showDetail('${a.id}')">
       <div class="asset-icon ${a.type==='Эргэлтийн'?'circ':'fixed'}">${a.type==='Эргэлтийн'?'📦':'🏢'}</div>
       <div class="asset-info">
@@ -876,7 +878,7 @@ function renderAssets(){
       <div class="asset-right">
         <div class="asset-qty">${a.qty}</div>
         <div class="asset-unit">${a.unit||''}</div>
-        <span class="badge ${bc}">${a.status||'Сайн'}</span>
+        <span class="badge ${bc}">${a.status||'1-р зэрэг'}</span>
       </div>
     </div>`;
   }).join('');
@@ -900,7 +902,7 @@ function showDetail(id){
   if(!a)return;
   const whs=getWH();
   const wh=whs.find(w=>w.id===a.warehouseId);
-  const bc={Сайн:'b-ok',Дутуу:'b-warn',Засварт:'b-danger'}[a.status]||'b-ok';
+  const bc={'1-р зэрэг':'b-ok','2-р зэрэг':'b-info','3-р зэрэг':'b-warn','4-р зэрэг':'b-danger'}[a.status]||'b-ok';
   const tc=a.type==='Эргэлтийн'?'b-info':'b-ok';
   const imgUrl=getImgUrl(a.qr,a.id);
   const txs=getTx({assetId:a.id}).slice(0,5);
@@ -913,7 +915,7 @@ function showDetail(id){
       <div class="detail-qr">${a.qr}</div>
       <div class="detail-name">${a.name}</div>
       <div class="detail-badges">
-        <span class="badge ${bc}">${a.status||'Сайн'}</span>
+        <span class="badge ${bc}">${a.status||'1-р зэрэг'}</span>
         <span class="badge ${tc}">${a.type}</span>
       </div>
       <div class="info-card">
@@ -1003,11 +1005,11 @@ function showScanResult(qr){
   const a=assets.find(x=>x.qr===qr||x.id===qr);
   const el=document.getElementById('scanResult');
   if(!a){el.innerHTML=`<div class="info-card"><div class="info-row"><span style="color:var(--red);font-weight:600">🔍 Хөрөнгө олдсонгүй: ${qr}</span></div></div>`;return;}
-  const bc={Сайн:'b-ok',Дутуу:'b-warn',Засварт:'b-danger'}[a.status]||'b-ok';
+  const bc={'1-р зэрэг':'b-ok','2-р зэрэг':'b-info','3-р зэрэг':'b-warn','4-р зэрэг':'b-danger'}[a.status]||'b-ok';
   el.innerHTML=`<div class="info-card">
     <div class="info-row"><span class="info-label">Нэр</span><span class="info-val">${a.name}</span></div>
     <div class="info-row"><span class="info-label">Тоо хэмжээ</span><span class="info-val big">${a.qty} ${a.unit||''}</span></div>
-    <div class="info-row"><span class="info-label">Статус</span><span class="badge ${bc}">${a.status||'Сайн'}</span></div>
+    <div class="info-row"><span class="info-label">Зэрэглэл</span><span class="badge ${bc}">${a.status||'1-р зэрэг'}</span></div>
   </div>
   <div class="action-grid" style="margin-top:10px">
     <button class="act-btn income" onclick="openTx('${a.id}','income')"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg> Орлого</button>
@@ -1026,7 +1028,7 @@ function openIncome(assetId){
   const u=currentUser();
   document.getElementById('inc-name').value='';
   document.getElementById('inc-type').value='Эргэлтийн';
-  document.getElementById('inc-status').value='Сайн';
+  document.getElementById('inc-status').value='1-р зэрэг';
   document.getElementById('inc-cat').value='';
   document.getElementById('inc-qty').value='1';
   document.getElementById('inc-unit').value='';
@@ -1077,7 +1079,7 @@ function submitIncome(){
     qty,price,total:qty*price,
     warehouseId:u.warehouseId||null,
     naraaType:u.naraaType||'',naraaName:u.name||'',userId:u.id,
-    status:document.getElementById('inc-status').value||'Сайн',
+    status:document.getElementById('inc-status').value||'1-р зэрэг',
     accountNo,note:document.getElementById('inc-note').value.trim(),
     createdAt:Date.now(),lastChecked:Date.now()
   };
@@ -1218,7 +1220,7 @@ function openNewAsset(){
   document.getElementById('na-price').value='0';
   document.getElementById('na-cat').value='';
   document.getElementById('na-accountno').value='';
-  document.getElementById('na-status').value='Сайн';
+  document.getElementById('na-status').value='1-р зэрэг';
   document.getElementById('na-note').value='';
   document.getElementById('imgInput').value='';
   document.getElementById('imgPreview').innerHTML=`
@@ -1263,7 +1265,7 @@ function saveNewAsset(){
     naraaType:u.naraaType||'',
     naraaName:u.name||'',
     userId:u.id,
-    status:document.getElementById('na-status').value||'Сайн',
+    status:document.getElementById('na-status').value||'1-р зэрэг',
     accountNo:accountNo,
     note:document.getElementById('na-note').value.trim(),
     createdAt:Date.now(),
