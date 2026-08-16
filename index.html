@@ -727,6 +727,14 @@ tr:hover td{background:#FAFBFC}
       <div class="modal-title" id="assetModalTitle">Хөрөнгө нэмэх</div>
       <button class="modal-close" onclick="closeModal('assetModal')">✕</button>
     </div>
+    <div class="form-group">
+      <label class="form-label">Зураг</label>
+      <div id="af-img-preview" onclick="document.getElementById('af-img-input').click()" style="width:100%;height:140px;background:var(--bg);border-radius:10px;border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span style="font-size:12px;color:var(--muted);margin-top:6px">Зураг сонгох</span>
+      </div>
+      <input type="file" id="af-img-input" accept="image/*" style="display:none" onchange="previewAfImg(this)">
+    </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Нэр *</label><input class="form-input" id="af-name" required></div>
       <div class="form-group">
@@ -803,7 +811,7 @@ tr:hover td{background:#FAFBFC}
       </button>
       <div style="display:flex;gap:8px">
         <button class="btn" onclick="closeModal('assetModal')">Цуцлах</button>
-        <button class="btn btn-primary" onclick="saveAsset()">Хадгалах</button>
+        <button class="btn btn-primary" id="af-save-btn" onclick="saveAsset()">Хадгалах</button>
       </div>
     </div>
   </div>
@@ -1560,6 +1568,16 @@ function renderAssetPage(){
     <button class="btn btn-sm" onclick="assetPage=Math.min(${totalPages-1},assetPage+1);renderAssetPage()" ${assetPage>=totalPages-1?'disabled':''}>→</button>`;
 }
 
+function resetAfImgPreview(existingUrl){
+  afImg=null; afImgPromise=null;
+  const box=document.getElementById('af-img-preview');
+  document.getElementById('af-img-input').value='';
+  if(existingUrl){
+    box.innerHTML=`<img src="${existingUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<span style=\\'font-size:12px;color:var(--muted)\\'>Зураг ачаалагдсангүй — дарж солино уу</span>'">`;
+  }else{
+    box.innerHTML=`<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span style="font-size:12px;color:var(--muted);margin-top:6px">Зураг сонгох</span>`;
+  }
+}
 function openAssetModal(id){
   const u0=currentUser();
   if(u0 && u0.role==='inspector'){
@@ -1595,6 +1613,7 @@ function openAssetModal(id){
     if(acEl) acEl.value=a.accountNo||'';
     document.getElementById('af-accountno').value=a.accountNo||'';
     if(delBtn) delBtn.style.display=(u.role==='nyagtlan'||u.role==='darga')?'inline-flex':'none';
+    resetAfImgPreview(getAssetImage(a.qr,a.id));
   } else {
     document.getElementById('assetModalTitle').textContent='Шинэ хөрөнгө нэмэх';
     document.getElementById('af-id').value='';
@@ -1605,8 +1624,80 @@ function openAssetModal(id){
     document.getElementById('af-status').value='1-р зэрэг';
     document.getElementById('af-user').value='';
     if(delBtn) delBtn.style.display='none';
+    resetAfImgPreview(null);
   }
   openModal('assetModal');
+}
+// Гар утасны камераар авсан зураг ихэвчлэн хэдэн MB хэмжээтэй, шахалтгүй байдаг.
+// localStorage/Firebase-д найдвартай хадгалахын тулд канвасаар багасгаж (max ~1000px,
+// JPEG чанар ~0.6) шахна.
+let afImg=null, afImgPromise=null;
+function compressImageFile(file, maxDim=1000, quality=0.6){
+  return new Promise((resolve, reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error('Файл уншихад алдаа гарлаа'));
+    reader.onload=e=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('Зураг тайлахад алдаа гарлаа'));
+      img.onload=()=>{
+        let w=img.width, h=img.height;
+        if(w>h){ if(w>maxDim){ h=Math.round(h*maxDim/w); w=maxDim; } }
+        else{ if(h>maxDim){ w=Math.round(w*maxDim/h); h=maxDim; } }
+        const canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        const ctx=canvas.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function setAfSaveBusy(busy,label){
+  const btn=document.getElementById('af-save-btn');
+  if(!btn)return;
+  btn.disabled=busy;
+  btn.textContent=busy?(label||'⏳ Хүлээнэ үү...'):'Хадгалах';
+}
+// Зураг сонгомогц шууд urьдчилан харуулаад, дараа нь шахалт хийнэ. Шахалт async
+// тул "Хадгалах" товч дарахад хараахан бөглөгдөөгүй байхаас сэргийлж, шахалт
+// дуустал товчийг идэвхгүй болгож хүлээнэ (asset-mobile.html-тэй адил логик).
+function previewAfImg(input){
+  if(!input.files||!input.files[0])return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    document.getElementById('af-img-preview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;opacity:.5">`;
+  };
+  reader.readAsDataURL(input.files[0]);
+  setAfSaveBusy(true,'⏳ Зураг боловсруулж байна...');
+  afImgPromise=compressImageFile(input.files[0]).then(compressed=>{
+    afImg=compressed;
+    document.getElementById('af-img-preview').innerHTML=`<img src="${afImg}" style="width:100%;height:100%;object-fit:cover">`;
+  }).catch(err=>{
+    console.log('Зураг шахахад алдаа:',err);
+    alert('Зураг боловсруулахад алдаа гарлаа, дахин оролдоно уу');
+  }).finally(()=>{
+    afImgPromise=null;
+    setAfSaveBusy(false);
+  });
+}
+// Няравын аппын saveAssetImage-тэй ижил логик — Firebase-ийн 'images' node-д
+// {assetId: base64} хэлбэрээр хадгална. Ингэснээр энд нэмсэн зураг нярав,
+// хянагч, бусад бүх төхөөрөмж дээр автоматаар (шинэчлэлт хүлээхгүйгээр) харагдана —
+// image_matcher.html дэх Drive-зурагтай адилхан аяндаа "санагдана".
+function saveAssetImage(assetId, dataUrl){
+  try{
+    const m=JSON.parse(localStorage.getItem('ams_img_local')||'{}');
+    m[assetId]=dataUrl;
+    localStorage.setItem('ams_img_local',JSON.stringify(m));
+  }catch(e){ console.log('Зураг localStorage-д хадгалахад алдаа:',e); }
+  if(fbDB){
+    fbDB.ref('images/'+assetId).set(dataUrl).catch(e=>{
+      console.log('Зураг Cloud sync алдаа:',e);
+      alert('⚠️ Зураг Cloud руу илгээхэд алдаа гарлаа: '+(e&&e.message?e.message:'холболт шалгана уу'));
+    });
+  }
 }
 function deleteAssetConfirm(){
   const id=document.getElementById('af-id').value;
@@ -1625,7 +1716,11 @@ function deleteAssetConfirm(){
   renderAssets();
   renderDashboard();
 }
-function saveAsset(){
+async function saveAsset(){
+  if(afImgPromise){
+    setAfSaveBusy(true,'⏳ Зураг боловсруулж байна...');
+    await afImgPromise;
+  }
   const id=document.getElementById('af-id').value;
   const name=document.getElementById('af-name').value.trim();
   if(!name){alert('Нэр оруулна уу');return;}
@@ -1660,6 +1755,7 @@ function saveAsset(){
     lastChecked:new Date().toISOString(),
   };
   upsertAsset(asset);
+  if(afImg){ saveAssetImage(asset.id, afImg); }
   closeModal('assetModal');
   renderAssets();
   renderDashboard();
