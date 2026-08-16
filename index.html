@@ -2993,6 +2993,7 @@ function listenCloudChanges(){
       localStorage.setItem(KEYS.IMG, JSON.stringify(data));
       // Нээлттэй байгаа дэлгэрэнгүй/тайлангийн дэлгэцийг зурагтай нь шинэчилнэ
       if(typeof renderAssets==='function') renderAssets();
+      if(currentDetailAssetId && typeof showAssetDetail==='function') showAssetDetail(currentDetailAssetId);
     }
   });
   fbDB.ref('images').on('value', snap => {

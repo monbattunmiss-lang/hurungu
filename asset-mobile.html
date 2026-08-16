@@ -1506,6 +1506,17 @@ function pullFromCloud(){
       if(currentDetailId)showDetail(currentDetailId);
     }
   });
+  // image_matcher.html хэрэгслээр Google Drive-тай тааруулсан зургийн
+  // харгалзаа (QR → Drive file id)-г татаж авах. Үүнгүйгээр Drive-с
+  // тааруулсан зураг энэ (нярав) утсан дээр огт харагдахгүй байсан.
+  fbDB.ref('imgMap').once('value').then(snap=>{
+    const d=snap.val();
+    if(d){
+      localStorage.setItem('ams_img_map',JSON.stringify(d));
+      if(curTab==='assets')renderAssets();
+      if(currentDetailId)showDetail(currentDetailId);
+    }
+  });
 }
 
 function listenCloud(){
@@ -1526,6 +1537,17 @@ function listenCloud(){
     const d=snap.val();
     if(d){
       localStorage.setItem('ams_img_local',JSON.stringify(d));
+      if(curTab==='assets')renderAssets();
+      if(currentDetailId)showDetail(currentDetailId);
+    }
+  });
+  // Drive-тай тааруулсан зургийн харгалзааг real-time сонсох —
+  // нярав image_matcher.html-ийг оролцуулаагүй ч шинэ тааруулалт хийгдэх
+  // тутамд утсан дээр нь автоматаар шинэчлэгдэнэ.
+  fbDB.ref('imgMap').on('value',snap=>{
+    const d=snap.val();
+    if(d){
+      localStorage.setItem('ams_img_map',JSON.stringify(d));
       if(curTab==='assets')renderAssets();
       if(currentDetailId)showDetail(currentDetailId);
     }
