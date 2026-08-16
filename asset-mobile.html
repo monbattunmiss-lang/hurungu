@@ -496,7 +496,7 @@ window.jsQRReady = new Promise((resolve) => {
       <textarea id="na-note" placeholder="Нэмэлт мэдээлэл..." style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;font-family:inherit;resize:none;height:80px"></textarea>
     </div>
 
-    <button onclick="saveNewAsset()" style="width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer">✅ Бүртгэх</button>
+    <button id="naSubmitBtn" onclick="saveNewAsset()" style="width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer">✅ Бүртгэх</button>
     <button onclick="closeNewAsset()" style="width:100%;background:transparent;border:none;color:var(--muted);padding:12px;font-size:14px;cursor:pointer;margin-top:6px">Цуцлах</button>
   </div>
 </div>
@@ -586,7 +586,7 @@ window.jsQRReady = new Promise((resolve) => {
       <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Тэмдэглэл</label>
       <textarea id="inc-note" placeholder="Нэмэлт мэдээлэл..." style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:14px;background:#f9f9f9;color:#111;outline:none;font-family:inherit;resize:none;height:72px;box-sizing:border-box"></textarea>
     </div>
-    <button onclick="submitIncome()" style="width:100%;background:#2E7D32;color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer">✅ Орлого бүртгэх</button>
+    <button id="incSubmitBtn" onclick="submitIncome()" style="width:100%;background:#2E7D32;color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer">✅ Орлого бүртгэх</button>
     <button onclick="closeIncome()" style="width:100%;background:transparent;border:none;color:#888;padding:12px;font-size:14px;cursor:pointer;margin-top:4px">Цуцлах</button>
   </div>
 </div>
@@ -627,7 +627,7 @@ window.jsQRReady = new Promise((resolve) => {
       <label style="display:block;font-size:12px;font-weight:600;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Тэмдэглэл</label>
       <textarea id="exp-note" placeholder="Хэнд өгсөн, ямар зорилгоор..." style="width:100%;border:1.5px solid #e0e0e0;border-radius:12px;padding:11px 14px;font-size:14px;background:#f9f9f9;color:#111;outline:none;font-family:inherit;resize:none;height:72px;box-sizing:border-box"></textarea>
     </div>
-    <button onclick="submitExpense()" style="width:100%;background:#C62828;color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer">✅ Зарлага бүртгэх</button>
+    <button id="expSubmitBtn" onclick="submitExpense()" style="width:100%;background:#C62828;color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer">✅ Зарлага бүртгэх</button>
     <button onclick="closeExpense()" style="width:100%;background:transparent;border:none;color:#888;padding:12px;font-size:14px;cursor:pointer;margin-top:4px">Цуцлах</button>
   </div>
 </div>
@@ -1105,6 +1105,11 @@ function compressImageFile(file, maxDim=1000, quality=0.6){
     reader.readAsDataURL(file);
   });
 }
+// Зураг шахах нь async тул, хэрэглэгч шахалт дуусахаас өмнө "Бүртгэх" товчийг
+// дарвал incImg хараахан бөглөгдөөгүй байж, зураг ЯМАР Ч АЛДААГҮЙ ЧИМЭЭГҮЙХЭН
+// хадгалагдахгүй өнгөрдөг байсан (race condition). Үүнийг засахын тулд
+// incImgPromise-г submitIncome() дотор хүлээж, товчийг шахах явцад идэвхгүй болгоно.
+let incImgPromise=null;
 function previewIncImg(input){
   if(!input.files||!input.files[0])return;
   const reader=new FileReader();
@@ -1112,20 +1117,36 @@ function previewIncImg(input){
     document.getElementById('incImgPreview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;opacity:.5">`;
   };
   reader.readAsDataURL(input.files[0]);
-  compressImageFile(input.files[0]).then(compressed=>{
+  setIncSubmitBusy(true,'⏳ Зураг боловсруулж байна...');
+  incImgPromise=compressImageFile(input.files[0]).then(compressed=>{
     incImg=compressed;
     document.getElementById('incImgPreview').innerHTML=`<img src="${incImg}" style="width:100%;height:100%;object-fit:cover">`;
   }).catch(err=>{
     console.log('Зураг шахахад алдаа:',err);
     showToast('⚠️ Зураг боловсруулахад алдаа гарлаа, дахин оролдоно уу');
+  }).finally(()=>{
+    incImgPromise=null;
+    setIncSubmitBusy(false);
   });
+}
+function setIncSubmitBusy(busy,label){
+  const btn=document.getElementById('incSubmitBtn');
+  if(!btn)return;
+  btn.disabled=busy;
+  btn.textContent=busy?(label||'⏳ Хүлээнэ үү...'):'✅ Орлого бүртгэх';
 }
 function calcTotal(){
   const qty=parseInt(document.getElementById('inc-qty').value)||0;
   const price=parseInt(document.getElementById('inc-price').value)||0;
   document.getElementById('inc-total').textContent=(qty*price).toLocaleString('mn-MN')+'₮';
 }
-function submitIncome(){
+async function submitIncome(){
+  // Зураг хараахан шахагдаж дуусаагүй бол хүлээнэ — эс тэгвэл incImg
+  // хоосон хэвээр байгаад зураг хадгалагдахгүй өнгөрдөг байсан.
+  if(incImgPromise){
+    setIncSubmitBusy(true,'⏳ Зураг боловсруулж байна...');
+    await incImgPromise;
+  }
   const name=document.getElementById('inc-name').value.trim();
   if(!name){showToast('Нэр оруулна уу');return;}
   const u=currentUser();
@@ -1214,6 +1235,7 @@ function openExpense(assetId){
   document.getElementById('expenseModal').style.display='flex';
 }
 function closeExpense(){document.getElementById('expenseModal').style.display='none';}
+let expImgPromise=null;
 function previewExpImg(input){
   if(!input.files||!input.files[0])return;
   const reader=new FileReader();
@@ -1221,13 +1243,23 @@ function previewExpImg(input){
     document.getElementById('expImgPreview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;opacity:.5">`;
   };
   reader.readAsDataURL(input.files[0]);
-  compressImageFile(input.files[0]).then(compressed=>{
+  setExpSubmitBusy(true,'⏳ Зураг боловсруулж байна...');
+  expImgPromise=compressImageFile(input.files[0]).then(compressed=>{
     expImg=compressed;
     document.getElementById('expImgPreview').innerHTML=`<img src="${expImg}" style="width:100%;height:100%;object-fit:cover">`;
   }).catch(err=>{
     console.log('Зураг шахахад алдаа:',err);
     showToast('⚠️ Зураг боловсруулахад алдаа гарлаа, дахин оролдоно уу');
+  }).finally(()=>{
+    expImgPromise=null;
+    setExpSubmitBusy(false);
   });
+}
+function setExpSubmitBusy(busy,label){
+  const btn=document.getElementById('expSubmitBtn');
+  if(!btn)return;
+  btn.disabled=busy;
+  btn.textContent=busy?(label||'⏳ Хүлээнэ үү...'):'✅ Зарлага бүртгэх';
 }
 function searchExpAsset(){
   const q=document.getElementById('exp-search').value;
@@ -1250,7 +1282,11 @@ function selExpAsset(id){
     document.getElementById('exp-search').value=a.name;
   }
 }
-function submitExpense(){
+async function submitExpense(){
+  if(expImgPromise){
+    setExpSubmitBusy(true,'⏳ Зураг боловсруулж байна...');
+    await expImgPromise;
+  }
   if(!expAssetId){showToast('Хөрөнгө сонгоно уу');return;}
   const a=get(KEYS.A).find(x=>x.id===expAssetId);
   if(!a)return;
@@ -1330,6 +1366,7 @@ function openNewAsset(){
 function closeNewAsset(){
   document.getElementById('newAssetModal').style.display='none';
 }
+let naImgPromise=null;
 function previewImg(input){
   if(!input.files||!input.files[0])return;
   const file=input.files[0];
@@ -1338,15 +1375,29 @@ function previewImg(input){
     document.getElementById('imgPreview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;opacity:.5">`;
   };
   reader.readAsDataURL(file);
-  compressImageFile(file).then(compressed=>{
+  setNaSubmitBusy(true,'⏳ Зураг боловсруулж байна...');
+  naImgPromise=compressImageFile(file).then(compressed=>{
     naImg=compressed;
     document.getElementById('imgPreview').innerHTML=`<img src="${naImg}" style="width:100%;height:100%;object-fit:cover">`;
   }).catch(err=>{
     console.log('Зураг шахахад алдаа:',err);
     showToast('⚠️ Зураг боловсруулахад алдаа гарлаа, дахин оролдоно уу');
+  }).finally(()=>{
+    naImgPromise=null;
+    setNaSubmitBusy(false);
   });
 }
-function saveNewAsset(){
+function setNaSubmitBusy(busy,label){
+  const btn=document.getElementById('naSubmitBtn');
+  if(!btn)return;
+  btn.disabled=busy;
+  btn.textContent=busy?(label||'⏳ Хүлээнэ үү...'):'✅ Бүртгэх';
+}
+async function saveNewAsset(){
+  if(naImgPromise){
+    setNaSubmitBusy(true,'⏳ Зураг боловсруулж байна...');
+    await naImgPromise;
+  }
   const name=document.getElementById('na-name').value.trim();
   if(!name){showToast('Нэр оруулна уу');return;}
   const u=currentUser();
