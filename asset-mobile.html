@@ -720,9 +720,19 @@ function saveAssetImage(assetId, dataUrl){
     const m=JSON.parse(localStorage.getItem('ams_img_local')||'{}');
     m[assetId]=dataUrl;
     localStorage.setItem('ams_img_local',JSON.stringify(m));
-  }catch(e){}
+  }catch(e){
+    console.log('Зураг localStorage-д хадгалахад алдаа:',e);
+    showToast('⚠️ Зураг төхөөрөмж дээр хадгалахад алдаа гарлаа (санах ой дүүрсэн байж болзошгүй)');
+  }
   if(typeof fbDB!=='undefined' && fbDB){
-    fbDB.ref('images/'+assetId).set(dataUrl).catch(e=>console.log('Зураг sync алдаа:',e));
+    fbDB.ref('images/'+assetId).set(dataUrl)
+      .then(()=>{ showToast('📷 Зураг Cloud руу хадгалагдлаа'); })
+      .catch(e=>{
+        console.log('Зураг sync алдаа:',e);
+        showToast('⚠️ Зураг Cloud руу илгээхэд алдаа гарлаа: '+(e&&e.message?e.message:'холболт шалгана уу'));
+      });
+  }else{
+    showToast('⚠️ Cloud холбогдоогүй тул зураг зөвхөн энэ утсанд түр хадгалагдлаа');
   }
 }
 // Хуучин (Cloud sync засвар хийгдэхээс өмнө авсан) зургууд зөвхөн тухайн
@@ -1066,14 +1076,49 @@ function openIncome(assetId){
   document.getElementById('incomeModal').style.display='flex';
 }
 function closeIncome(){document.getElementById('incomeModal').style.display='none';}
+// Гар утасны камераар авсан зураг ихэвчлэн 3-15MB хэмжээтэй, шахалтгүй байдаг.
+// Ийм том зургийг шууд localStorage-д (~5-10MB хязгаартай) болон Firebase
+// Realtime Database-д (том нэг бичлэг илгээхэд найдваргүй, ялангуяа сул сүлжээн дээр)
+// хадгалахыг оролдоход АЛДАА ЧИМЭЭГҮЙХЭН гарч, зураг хэзээ ч хадгалагдахгүй байсан
+// нь "зураг харагдахгүй байна" гэдэг давтагдсан асуудлын жинхэнэ шалтгаан байв.
+// Иймд зургийг хадгалахаас өмнө канвасаар багасгаж (max ~1000px, JPEG чанар ~0.6)
+// шахна — ингэснээр хэмжээ ойролцоогоор 100-300KB болж, найдвартай хадгалагдана.
+function compressImageFile(file, maxDim=1000, quality=0.6){
+  return new Promise((resolve, reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error('Файл уншихад алдаа гарлаа'));
+    reader.onload=e=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('Зураг тайлахад алдаа гарлаа'));
+      img.onload=()=>{
+        let w=img.width, h=img.height;
+        if(w>h){ if(w>maxDim){ h=Math.round(h*maxDim/w); w=maxDim; } }
+        else{ if(h>maxDim){ w=Math.round(w*maxDim/h); h=maxDim; } }
+        const canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        const ctx=canvas.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 function previewIncImg(input){
   if(!input.files||!input.files[0])return;
   const reader=new FileReader();
   reader.onload=e=>{
-    incImg=e.target.result;
-    document.getElementById('incImgPreview').innerHTML=`<img src="${incImg}" style="width:100%;height:100%;object-fit:cover">`;
+    document.getElementById('incImgPreview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;opacity:.5">`;
   };
   reader.readAsDataURL(input.files[0]);
+  compressImageFile(input.files[0]).then(compressed=>{
+    incImg=compressed;
+    document.getElementById('incImgPreview').innerHTML=`<img src="${incImg}" style="width:100%;height:100%;object-fit:cover">`;
+  }).catch(err=>{
+    console.log('Зураг шахахад алдаа:',err);
+    showToast('⚠️ Зураг боловсруулахад алдаа гарлаа, дахин оролдоно уу');
+  });
 }
 function calcTotal(){
   const qty=parseInt(document.getElementById('inc-qty').value)||0;
@@ -1173,10 +1218,16 @@ function previewExpImg(input){
   if(!input.files||!input.files[0])return;
   const reader=new FileReader();
   reader.onload=e=>{
-    expImg=e.target.result;
-    document.getElementById('expImgPreview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+    document.getElementById('expImgPreview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;opacity:.5">`;
   };
   reader.readAsDataURL(input.files[0]);
+  compressImageFile(input.files[0]).then(compressed=>{
+    expImg=compressed;
+    document.getElementById('expImgPreview').innerHTML=`<img src="${expImg}" style="width:100%;height:100%;object-fit:cover">`;
+  }).catch(err=>{
+    console.log('Зураг шахахад алдаа:',err);
+    showToast('⚠️ Зураг боловсруулахад алдаа гарлаа, дахин оролдоно уу');
+  });
 }
 function searchExpAsset(){
   const q=document.getElementById('exp-search').value;
@@ -1284,10 +1335,16 @@ function previewImg(input){
   const file=input.files[0];
   const reader=new FileReader();
   reader.onload=e=>{
-    naImg=e.target.result;
-    document.getElementById('imgPreview').innerHTML=`<img src="${naImg}" style="width:100%;height:100%;object-fit:cover">`;
+    document.getElementById('imgPreview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;opacity:.5">`;
   };
   reader.readAsDataURL(file);
+  compressImageFile(file).then(compressed=>{
+    naImg=compressed;
+    document.getElementById('imgPreview').innerHTML=`<img src="${naImg}" style="width:100%;height:100%;object-fit:cover">`;
+  }).catch(err=>{
+    console.log('Зураг шахахад алдаа:',err);
+    showToast('⚠️ Зураг боловсруулахад алдаа гарлаа, дахин оролдоно уу');
+  });
 }
 function saveNewAsset(){
   const name=document.getElementById('na-name').value.trim();
