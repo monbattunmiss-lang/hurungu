@@ -724,15 +724,21 @@ function saveAssetImage(assetId, dataUrl){
     console.log('Зураг localStorage-д хадгалахад алдаа:',e);
     showToast('⚠️ Зураг төхөөрөмж дээр хадгалахад алдаа гарлаа (санах ой дүүрсэн байж болзошгүй)');
   }
+  // Cloud руу илгээх Promise-г буцаана — дуудаж буй тал (submitIncome гэх мэт) үүнийг
+  // хүлээснээр сул сүлжээн дээр (жишээ нь неt хурд маш удаан үед) хэрэглэгч апп-аас
+  // гарах/хуудас хаах үед илгээлт дутуу тасрахаас сэргийлнэ — эс тэгвэл зураг зөвхөн
+  // тухайн төхөөрөмж дээр (localStorage) л үлдэж, бусад хэрэглэгчид харагдахгүй үлддэг байв.
   if(typeof fbDB!=='undefined' && fbDB){
-    fbDB.ref('images/'+assetId).set(dataUrl)
-      .then(()=>{ showToast('📷 Зураг Cloud руу хадгалагдлаа'); })
+    return fbDB.ref('images/'+assetId).set(dataUrl)
+      .then(()=>{ showToast('📷 Зураг Cloud руу хадгалагдлаа'); return true; })
       .catch(e=>{
         console.log('Зураг sync алдаа:',e);
         showToast('⚠️ Зураг Cloud руу илгээхэд алдаа гарлаа: '+(e&&e.message?e.message:'холболт шалгана уу'));
+        return false;
       });
   }else{
     showToast('⚠️ Cloud холбогдоогүй тул зураг зөвхөн энэ утсанд түр хадгалагдлаа');
+    return Promise.resolve(false);
   }
 }
 // Хуучин (Cloud sync засвар хийгдэхээс өмнө авсан) зургууд зөвхөн тухайн
@@ -1174,7 +1180,14 @@ async function submitIncome(){
     existing.total = existing.qty*existing.price; // addTx-ийн дараа шинэ (нэмэгдсэн) тоогоор дахин тооцно
     save(KEYS.A,assets);
     if(typeof pushSingleRecordToCloud==='function')pushSingleRecordToCloud('assets',existing);
-    if(incImg){ saveAssetImage(existing.id, incImg); }
+    // Зураг байгаа бол Cloud руу бүрэн илгээгдэж дуустал хүлээнэ — үгүй бол сул
+    // сүлжээн дээр (удаан интернет) хэрэглэгч апп-аас гарахад зураг зөвхөн энэ
+    // утсанд үлдэж, бусад хэрэглэгчид (нягтлан, хянагч) харагдахгүй үлддэг байв.
+    if(incImg){
+      setIncSubmitBusy(true,'☁️ Зураг Cloud руу илгээж байна...');
+      await saveAssetImage(existing.id, incImg);
+      setIncSubmitBusy(false);
+    }
     closeIncome();
     showToast('✅ '+existing.name+' үлдэгдэлд '+qty+' нэмэгдлээ');
     renderHome();if(curTab==='assets')renderAssets();
@@ -1201,10 +1214,13 @@ async function submitIncome(){
   assets.push(asset);
   save(KEYS.A,assets);
   addTx({assetId:newId,assetName:name,assetQR:qr,userId:u.id,userName:u.name,type:'income',qty,note});
-  if(incImg){
-    saveAssetImage(newId, incImg);
-  }
   if(typeof pushSingleRecordToCloud==='function')pushSingleRecordToCloud('assets',asset);
+  // Зураг байгаа бол Cloud руу бүрэн илгээгдэж дуустал хүлээнэ (дээрх тайлбарыг үз).
+  if(incImg){
+    setIncSubmitBusy(true,'☁️ Зураг Cloud руу илгээж байна...');
+    await saveAssetImage(newId, incImg);
+    setIncSubmitBusy(false);
+  }
   closeIncome();
   showToast('✅ '+name+' бүртгэгдлээ! QR: '+qr);
   renderHome();if(curTab==='assets')renderAssets();
@@ -1296,7 +1312,9 @@ async function submitExpense(){
   const u=currentUser();
   addTx({assetId:a.id,assetName:a.name,assetQR:a.qr,userId:u.id,userName:u.name,type:'expense',qty,note});
   if(expImg){
-    saveAssetImage(a.id, expImg);
+    setExpSubmitBusy(true,'☁️ Зураг Cloud руу илгээж байна...');
+    await saveAssetImage(a.id, expImg);
+    setExpSubmitBusy(false);
   }
   const expAssetSnap=a.id,expQtySnap=qty,expNoteSnap=note;
   closeExpense();closeDetail();
@@ -1430,13 +1448,16 @@ async function saveNewAsset(){
   assets.push(asset);
   save(KEYS.A,assets);
 
-  // Зураг хадгалах (localStorage-д base64 байдлаар + Cloud руу sync)
-  if(naImg){
-    saveAssetImage(newId, naImg);
-  }
-
   // Firebase-д push хийх — зөвхөн шинээр үүссэн ганц хөрөнгийг
   if(typeof pushSingleRecordToCloud==='function')pushSingleRecordToCloud('assets',asset);
+
+  // Зураг хадгалах (localStorage-д base64 байдлаар + Cloud руу sync) — бүрэн
+  // илгээгдэж дуустал хүлээнэ (сул сүлжээн дээр тасрахаас сэргийлэх).
+  if(naImg){
+    setNaSubmitBusy(true,'☁️ Зураг Cloud руу илгээж байна...');
+    await saveAssetImage(newId, naImg);
+    setNaSubmitBusy(false);
+  }
 
   closeNewAsset();
   showToast('✅ '+name+' бүртгэгдлээ! QR: '+qr);
