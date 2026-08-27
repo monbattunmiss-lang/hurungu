@@ -1682,16 +1682,14 @@ function previewAfImg(input){
     setAfSaveBusy(false);
   });
 }
-// Няравын аппын saveAssetImage-тэй ижил логик — Firebase-ийн 'images' node-д
-// {assetId: base64} хэлбэрээр хадгална. Ингэснээр энд нэмсэн зураг нярав,
-// хянагч, бусад бүх төхөөрөмж дээр автоматаар (шинэчлэлт хүлээхгүйгээр) харагдана —
-// image_matcher.html дэх Drive-зурагтай адилхан аяндаа "санагдана".
+// Cloud-с ирсэн бүх зургийг browser-ийн localStorage (ердөө ~5-10MB хязгаартай)
+// руу бүхэлд нь хуулж хадгалдаг байсан нь хөрөнгийн тоо, зургийн тоо өсөхөд
+// QuotaExceededError үүсгэж, тэр цагаас хойш ШИНЭ ЗУРАГ ХЭЗЭЭ Ч тухайн
+// төхөөрөмж дээр орж ирэхгүй болдог байсан. Одоо зөвхөн санах ойд (memory)
+// кэшлэдэг болгож, хэмжээний хязгаараас ангижруулав.
+let cloudImageCache={};
 function saveAssetImage(assetId, dataUrl){
-  try{
-    const m=JSON.parse(localStorage.getItem('ams_img_local')||'{}');
-    m[assetId]=dataUrl;
-    localStorage.setItem('ams_img_local',JSON.stringify(m));
-  }catch(e){ console.log('Зураг localStorage-д хадгалахад алдаа:',e); }
+  cloudImageCache[assetId]=dataUrl;
   if(fbDB){
     fbDB.ref('images/'+assetId).set(dataUrl).catch(e=>{
       console.log('Зураг Cloud sync алдаа:',e);
@@ -2902,13 +2900,8 @@ function confirmClearAll(){
 }
 
 function getAssetImage(qrId, assetId){
-  // 1) Нярав гар утаснаасаа авсан, Cloud-оор sync хийгдсэн зураг (base64)
-  if(assetId){
-    try{
-      const localMap=JSON.parse(localStorage.getItem('ams_img_local')||'{}');
-      if(localMap[assetId]) return localMap[assetId];
-    }catch(e){}
-  }
+  // 1) Нярав гар утаснаасаа авсан, Cloud-оор sync хийгдсэн зураг (base64) — санах ойн кэш
+  if(assetId && cloudImageCache[assetId]) return cloudImageCache[assetId];
   // 2) image_matcher.html хэрэгслээр Google Drive-тай тааруулсан зураг
   try{
     const imgMap=JSON.parse(localStorage.getItem(KEYS.IMG)||'{}');
@@ -3024,7 +3017,11 @@ function pullFromCloud(){
   fbDB.ref('transactions').once('value').then(snap => {
     const data = snap.val();
     if(data){
-      const arr = Object.values(data).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+      const arr = Object.values(data).sort((a,b)=>{
+        const da=new Date(a.createdAt).getTime()||Number(a.createdAt)||0;
+        const db=new Date(b.createdAt).getTime()||Number(b.createdAt)||0;
+        return db-da;
+      });
       localStorage.setItem(KEYS.TX, JSON.stringify(arr));
     }
   });
@@ -3045,7 +3042,7 @@ function pullFromCloud(){
   fbDB.ref('images').once('value').then(snap => {
     const data = snap.val();
     if(data){
-      localStorage.setItem('ams_img_local', JSON.stringify(data));
+      cloudImageCache=data;
       if(currentDetailAssetId && typeof showAssetDetail==='function') showAssetDetail(currentDetailAssetId);
     }
   });
@@ -3095,7 +3092,7 @@ function listenCloudChanges(){
   fbDB.ref('images').on('value', snap => {
     const data = snap.val();
     if(data){
-      localStorage.setItem('ams_img_local', JSON.stringify(data));
+      cloudImageCache=data;
       if(typeof renderAssets==='function') renderAssets();
       if(currentDetailAssetId && typeof showAssetDetail==='function') showAssetDetail(currentDetailAssetId);
     }

@@ -705,29 +705,27 @@ function addTx(tx){
   }
   return touchedAsset;
 }
+// Cloud-с ирсэн бүх зургийг (олон зуун МБ хүрч болзошгүй) browser-ийн
+// localStorage (ердөө ~5-10MB хязгаартай) руу бүхэлд нь хуулж хадгалдаг байсан нь
+// хөрөнгийн тоо, зургийн тоо өсөхөд QuotaExceededError үүсгэж, тэр цагаас хойш
+// ШИНЭ ЗУРАГ ХЭЗЭЭ Ч тухайн төхөөрөмж дээр орж ирэхгүй болдог байсан — энэ бол
+// "зөвхөн надад л харагдаж байна" гэдэг алдааны жинхэнэ үндэс. Одоо үүнийг
+// зөвхөн санах ойд (memory) кэшлэдэг болгож, хэмжээний хязгаараас ангижруулав.
+let cloudImageCache={};
 function getImgUrl(qr,assetId){
   // First check local images (Cloud-с sync хийгдсэн эсвэл энэ төхөөрөмж дээр авсан)
-  if(assetId){
-    try{const m=JSON.parse(localStorage.getItem('ams_img_local')||'{}');if(m[assetId])return m[assetId];}catch{}
-  }
+  if(assetId && cloudImageCache[assetId]) return cloudImageCache[assetId];
   try{const m=JSON.parse(ls('ams_img_map')||'{}');const id=m[qr.replace('QR-','')];return id?`https://drive.google.com/thumbnail?id=${id}&sz=w400`:null;}catch{return null;}
 }
-// Няравын авсан зургийг (base64) localStorage-д хадгалахын зэрэгцээ Cloud (Firebase)-д ч
-// хадгална — ингэснээр өөр төхөөрөмж/хэрэглэгч (нягтлан, санхүүгийн дарга, өөр утас гэх мэт)
+// Няравын авсан зургийг санах ойд шууд хадгалаад Cloud (Firebase)-д ч хадгална —
+// ингэснээр өөр төхөөрөмж/хэрэглэгч (нягтлан, санхүүгийн дарга, өөр утас гэх мэт)
 // дээр ч тэр зураг харагдана. Няравын утас солигдоход ч зураг алдагдахгүй.
 function saveAssetImage(assetId, dataUrl){
-  try{
-    const m=JSON.parse(localStorage.getItem('ams_img_local')||'{}');
-    m[assetId]=dataUrl;
-    localStorage.setItem('ams_img_local',JSON.stringify(m));
-  }catch(e){
-    console.log('Зураг localStorage-д хадгалахад алдаа:',e);
-    showToast('⚠️ Зураг төхөөрөмж дээр хадгалахад алдаа гарлаа (санах ой дүүрсэн байж болзошгүй)');
-  }
+  cloudImageCache[assetId]=dataUrl;
   // Cloud руу илгээх Promise-г буцаана — дуудаж буй тал (submitIncome гэх мэт) үүнийг
   // хүлээснээр сул сүлжээн дээр (жишээ нь неt хурд маш удаан үед) хэрэглэгч апп-аас
   // гарах/хуудас хаах үед илгээлт дутуу тасрахаас сэргийлнэ — эс тэгвэл зураг зөвхөн
-  // тухайн төхөөрөмж дээр (localStorage) л үлдэж, бусад хэрэглэгчид харагдахгүй үлддэг байв.
+  // тухайн төхөөрөмж дээр (санах ой) л үлдэж, бусад хэрэглэгчид харагдахгүй үлддэг байв.
   if(typeof fbDB!=='undefined' && fbDB){
     return fbDB.ref('images/'+assetId).set(dataUrl)
       .then(()=>{ showToast('📷 Зураг Cloud руу хадгалагдлаа'); return true; })
@@ -741,27 +739,16 @@ function saveAssetImage(assetId, dataUrl){
     return Promise.resolve(false);
   }
 }
-// Хуучин (Cloud sync засвар хийгдэхээс өмнө авсан) зургууд зөвхөн тухайн
-// төхөөрөмжийн localStorage-д хоцорсон байж болзошгүй тул, хэрэглэгч энэ
-// төхөөрөмж дээрх бүх локал зургаа Cloud руу дахин нэг дор илгээх боломж.
+// Санах ойн зургийн кэшийг Cloud-с гараар шинэчлэх боломж (жишээ нь удаан
+// сүлжээн дараа "Зураг sync" товч дарж, шинэ зургуудыг шууд татаж авах).
 function resyncLocalImages(){
-  let m={};
-  try{ m=JSON.parse(localStorage.getItem('ams_img_local')||'{}'); }catch(e){}
-  const keys=Object.keys(m);
-  if(keys.length===0){ showToast('Энэ утсан дээр локал зураг олдсонгүй'); return; }
   if(!fbDB){ showToast('Cloud холбогдоогүй байна, түр хүлээгээд дахин оролдоно уу'); return; }
-  fbDB.ref('images').update(m)
-    .then(()=>showToast(`✅ ${keys.length} зураг Cloud руу илгээгдлээ`))
-    .catch(e=>showToast('Sync алдаа: '+(e&&e.message?e.message:e)));
-}
-// Дуугүйгээр автоматаар ажилладаг хувилбар — холболт үүсэх бүрд дуудагдаж,
-// хэрэглэгчийг саадгүйгээр хуучин зургуудыг цаг тухайд нь Cloud руу шилжүүлнэ.
-function resyncLocalImagesQuiet(){
-  let m={};
-  try{ m=JSON.parse(localStorage.getItem('ams_img_local')||'{}'); }catch(e){ return; }
-  const keys=Object.keys(m);
-  if(keys.length===0 || !fbDB) return;
-  fbDB.ref('images').update(m).catch(e=>console.log('Auto image sync алдаа:',e));
+  fbDB.ref('images').once('value').then(snap=>{
+    cloudImageCache=snap.val()||{};
+    showToast('✅ Зургууд Cloud-с шинэчлэгдлээ');
+    if(curTab==='assets')renderAssets();
+    if(currentDetailId)showDetail(currentDetailId);
+  }).catch(e=>showToast('Sync алдаа: '+(e&&e.message?e.message:e)));
 }
 function currentUser(){try{return JSON.parse(ls(KEYS.S));}catch{return null;}}
 
@@ -1543,7 +1530,6 @@ function initFirebase(){
       setSyncStatus('🟢 Cloud холбогдсон');
       pullFromCloud();
       listenCloud();
-      resyncLocalImagesQuiet();
     };
     document.head.appendChild(s2);
   };
@@ -1573,7 +1559,7 @@ function pullFromCloud(){
   fbDB.ref('images').once('value').then(snap=>{
     const d=snap.val();
     if(d){
-      localStorage.setItem('ams_img_local',JSON.stringify(d));
+      cloudImageCache=d;
       if(curTab==='assets')renderAssets();
       if(currentDetailId)showDetail(currentDetailId);
     }
@@ -1608,7 +1594,7 @@ function listenCloud(){
   fbDB.ref('images').on('value',snap=>{
     const d=snap.val();
     if(d){
-      localStorage.setItem('ams_img_local',JSON.stringify(d));
+      cloudImageCache=d;
       if(curTab==='assets')renderAssets();
       if(currentDetailId)showDetail(currentDetailId);
     }
