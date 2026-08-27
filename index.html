@@ -907,12 +907,12 @@ tr:hover td{background:#FAFBFC}
 <div class="modal-overlay" id="naraaEditModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Нярав мэдээлэл засах</div>
+      <div class="modal-title">Хэрэглэгчийн мэдээлэл засах</div>
       <button class="modal-close" onclick="closeModal('naraaEditModal')">✕</button>
     </div>
     <input type="hidden" id="ne-id">
     <div style="background:var(--blue-l);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--blue)">
-      ⚠️ Жил бүр томилолт солигдохоор энд нэрийг өөрчилнө. PIN код хэвээр үлдэнэ.
+      ⚠️ Нэр өөрчилбөл PIN хэвээр үлдэнэ. PIN код мартсан бол доод хэсэгт шинээр оруулж болно.
     </div>
     <div class="form-group">
       <label class="form-label">Одоогийн нэр</label>
@@ -942,6 +942,10 @@ tr:hover td{background:#FAFBFC}
     <div class="form-group">
       <label class="form-label">Томилсон он шинэчлэх</label>
       <input class="form-input" type="number" id="ne-year" placeholder="2026">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Шинэ PIN код (4 тоо) — мартсан бол энд шинээр оруулна</label>
+      <input class="form-input" type="password" id="ne-pin" maxlength="4" placeholder="Хоосон орхивол хуучин PIN хэвээр үлдэнэ">
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('naraaEditModal')">Цуцлах</button>
@@ -2704,10 +2708,10 @@ function renderUsers(){
       <td><span class="badge ${u.active?'b-ok':'b-gray'}">${u.active?'Идэвхтэй':'Идэвхгүй'}</span></td>
       <td>${u.joinedYear}</td>
       <td><div class="table-actions">
-        ${(u.role==='naraa'||u.role==='nyagtlan')?`<button class="btn btn-sm btn-primary" onclick="openNaraaEdit('${u.id}')" title="Нэр, төрөл засах">
+        <button class="btn btn-sm btn-primary" onclick="openNaraaEdit('${u.id}')" title="Нэр/PIN засах">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Нэр засах
-        </button>`:''}
+          Засах
+        </button>
         <button class="btn btn-sm" onclick="toggleUser('${u.id}')" style="white-space:nowrap">${u.active?'Идэвхгүй':'Идэвхжүүлэх'}</button>
       </div></td>
     </tr>`;
@@ -2834,6 +2838,11 @@ function openNaraaEdit(id){
   document.getElementById('ne-name').value='';
   document.getElementById('ne-naraaType').value=u.naraaType||'';
   document.getElementById('ne-year').value=u.joinedYear||new Date().getFullYear();
+  document.getElementById('ne-pin').value='';
+  // Нярав төрлийн сонголт зөвхөн 'naraa' эрхтэй хэрэглэгчид хамаарна — бусад
+  // (хянагч, нягтлан, санхүүгийн дарга) энэ талбарыг харах шаардлагагүй.
+  const typeGroup=document.getElementById('ne-naraaType').closest('.form-group');
+  if(typeGroup) typeGroup.style.display = (u.role==='naraa') ? '' : 'none';
   openModal('naraaEditModal');
 }
 
@@ -2842,7 +2851,9 @@ function saveNaraaEdit(){
   const newName=document.getElementById('ne-name').value.trim();
   const newType=document.getElementById('ne-naraaType').value;
   const newYear=parseInt(document.getElementById('ne-year').value)||new Date().getFullYear();
+  const newPin=document.getElementById('ne-pin').value.trim();
   if(!newName){alert('Шинэ нэр оруулна уу');return;}
+  if(newPin && !/^\d{4}$/.test(newPin)){alert('PIN код яг 4 оронтой тоо байх ёстой');return;}
   const users=getUsers();
   const u=users.find(x=>x.id===id);
   if(!u)return;
@@ -2850,6 +2861,7 @@ function saveNaraaEdit(){
   u.name=newName;
   if(newType)u.naraaType=newType;
   u.joinedYear=newYear;
+  if(newPin) u.pin=newPin;
   saveUsers(users);
   // Also update username in existing transactions
   const txs=JSON.parse(localStorage.getItem(KEYS.TX)||'[]');
@@ -2859,7 +2871,7 @@ function saveNaraaEdit(){
   renderUsers();
   populateSelects();
   renderDashboard();
-  alert(`✅ "${oldName}" → "${newName}" амжилттай өөрчлөгдлөө`);
+  alert(`✅ "${oldName}" → "${newName}" амжилттай өөрчлөгдлөө`+(newPin?' (PIN код мөн шинэчлэгдлээ)':''));
 }
 
 function toggleUser(id){
