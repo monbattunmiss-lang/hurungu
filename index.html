@@ -1713,7 +1713,8 @@ function deleteAssetConfirm(){
     : `"${a.name}" хөрөнгийг устгах уу?\n\nЭнэ үйлдлийг буцаах боломжгүй!`;
   if(!confirm(warnMsg))return;
   const updated=assets.filter(x=>x.id!==id);
-  saveAssets(updated);
+  localStorage.setItem(KEYS.ASSETS,JSON.stringify(updated));
+  if(typeof removeFromCloud==='function')removeFromCloud(KEYS.ASSETS,id);
   closeModal('assetModal');
   renderAssets();
   renderDashboard();
@@ -2785,7 +2786,7 @@ function deleteWH(id){
   if(!confirm('Агуулах устгах уу?'))return;
   const whs=getWH().filter(w=>w.id!==id);
   localStorage.setItem(KEYS.WH,JSON.stringify(whs));
-  if(typeof pushToCloud==='function')pushToCloud(KEYS.WH,whs);
+  if(typeof removeFromCloud==='function')removeFromCloud(KEYS.WH,id);
   populateSelects();
   renderWHTable();
 }
@@ -3156,7 +3157,29 @@ function pushToCloud(key, data){
   // .set() бол бүх зангилааг бүрмөсөн орлуулдаг тул зэрэгцээ өөр төхөөрөмж дээр
   // нэмэгдсэн бичлэгийг устгачихдаг эрсдэлтэй. .update() бол зөвхөн энд буй
   // key-үүдийг л шинэчилж, бусдыг хэвээр үлдээдэг тул илүү аюулгүй.
+  //
+  // АНХААР: .update() нь энд ДУТУУ буй (өөрөөр хэлбэл устгагдсан) key-үүдийг
+  // Cloud-с хэзээ ч арилгадаггүй. Тиймээс устгалт хийхэд энэ функцийг ашиглахын
+  // оронд removeFromCloud(key, id)-г ЯГ ТУХАЙН устгасан ID-д нь тодорхой дуудна —
+  // бүтэн жагсаалтыг харьцуулж диф хийвэл өөр төхөөрөмж дээр зэрэгцээ нэмэгдсэн,
+  // энэ төхөөрөмж дээр хараахан sync хийгдээгүй шинэ бичлэгийг санамсаргүй
+  // устгачихдаг аюултай тул зөвхөн ЭНЭ Л key бичигдэнэ.
   fbDB.ref(refName).update(obj).catch(e => console.log('Sync алдаа:', e));
+}
+// Ганц бичлэгийг Cloud-с тодорхой устгах — устгах үйлдэл бүрт ЗААВАЛ ЭНИЙГ дуудаж
+// тухайн ID-г нь Cloud дээрээс арилгана. Ингэснээр өөр төхөөрөмж дээрх
+// real-time listener дараа нь буцааж "сэргээхгүй" болно.
+function removeFromCloud(key, id){
+  if(!fbDB || !id) return;
+  const refMap = {
+    [KEYS.ASSETS]: 'assets',
+    [KEYS.TX]: 'transactions',
+    [KEYS.USERS]: 'users',
+    [KEYS.WH]: 'warehouses',
+  };
+  const refName = refMap[key];
+  if(!refName) return;
+  fbDB.ref(refName+'/'+id).remove().catch(e => console.log('Cloud-с устгах алдаа:', e));
 }
 
 // saveAssets, saveUsers аль хэдийн cloud руу push хийдэг (дээрх тодорхойлолтод)
