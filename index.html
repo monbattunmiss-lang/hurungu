@@ -3058,6 +3058,15 @@ function pullFromCloud(){
       if(currentDetailAssetId && typeof showAssetDetail==='function') showAssetDetail(currentDetailAssetId);
     }
   });
+  // Агуулах (warehouses) — өмнө нь энд огт байгаагүй тул шинэ агуулах зөвхөн
+  // үүсгэсэн компьютер дээр л үлдэж, бусад бүх төхөөрөмж дээр харагддаггүй байв.
+  fbDB.ref('warehouses').once('value').then(snap => {
+    const data = snap.val();
+    if(data){
+      localStorage.setItem(KEYS.WH, JSON.stringify(Object.values(data)));
+      if(typeof populateSelects==='function') populateSelects();
+    }
+  });
 }
 
 // Real-time сонсох
@@ -3107,6 +3116,17 @@ function listenCloudChanges(){
       cloudImageCache=data;
       if(typeof renderAssets==='function') renderAssets();
       if(currentDetailAssetId && typeof showAssetDetail==='function') showAssetDetail(currentDetailAssetId);
+    }
+  });
+  // Агуулах (warehouses) — real-time сонсох. Үгүй бол нэг компьютер дээр
+  // үүсгэсэн шинэ агуулах бусад хэрэглэгчид (нягтлан, санхүүгийн дарга гэх мэт)
+  // хэзээ ч харагдахгүй үлддэг байв.
+  fbDB.ref('warehouses').on('value', snap => {
+    const data = snap.val();
+    if(data){
+      localStorage.setItem(KEYS.WH, JSON.stringify(Object.values(data)));
+      if(typeof populateSelects==='function') populateSelects();
+      if(typeof renderWHTable==='function') renderWHTable();
     }
   });
 }

@@ -1575,6 +1575,15 @@ function pullFromCloud(){
       if(currentDetailId)showDetail(currentDetailId);
     }
   });
+  // Агуулах (warehouses) — өмнө нь энд огт байгаагүй тул бусад төхөөрөмж дээр
+  // нэмсэн шинэ агуулах нярав утсан дээр огт харагдахгүй байв.
+  fbDB.ref('warehouses').once('value').then(snap=>{
+    const d=snap.val();
+    if(d){
+      save(KEYS.W,Object.values(d));
+      if(curTab==='assets')renderAssets();
+    }
+  });
 }
 
 function listenCloud(){
@@ -1608,6 +1617,14 @@ function listenCloud(){
       localStorage.setItem('ams_img_map',JSON.stringify(d));
       if(curTab==='assets')renderAssets();
       if(currentDetailId)showDetail(currentDetailId);
+    }
+  });
+  // Агуулах (warehouses) real-time сонсох.
+  fbDB.ref('warehouses').on('value',snap=>{
+    const d=snap.val();
+    if(d){
+      save(KEYS.W,Object.values(d));
+      if(curTab==='assets')renderAssets();
     }
   });
 }
