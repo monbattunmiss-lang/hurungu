@@ -503,6 +503,55 @@ window.jsQRReady = new Promise((resolve) => {
 
 
 <!-- ОРЛОГО MODAL -->
+<div id="editAssetModal" style="position:fixed;inset:0;z-index:300;display:none;flex-direction:column;justify-content:flex-end">
+  <div onclick="closeEditAsset()" style="position:absolute;inset:0;background:rgba(0,0,0,.5)"></div>
+  <div style="background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-height:92vh;overflow-y:auto;position:relative;z-index:1;padding:20px 16px calc(24px + var(--safe-bot))">
+    <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px"></div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:16px">✏️ Хөрөнгө засах</div>
+    <input type="hidden" id="ea-id">
+
+    <!-- Зураг -->
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px">Зураг</label>
+      <div id="ea-imgPreview" style="width:100%;height:160px;background:var(--bg);border-radius:12px;border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden" onclick="document.getElementById('ea-imgInput').click()">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--hint)" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span style="font-size:13px;color:var(--hint);margin-top:8px">Камераар авах / Галерейгаас сонгох</span>
+      </div>
+      <input type="file" id="ea-imgInput" accept="image/*" style="display:none" onchange="previewEaImg(this)">
+    </div>
+
+    <!-- Нэр -->
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Нэр *</label>
+      <input id="ea-name" type="text" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:15px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+    </div>
+
+    <!-- Ангилал / Данс -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Ангилал</label>
+        <input id="ea-category" type="text" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+      </div>
+      <div>
+        <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Данс №</label>
+        <input id="ea-accountNo" type="text" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+      </div>
+    </div>
+
+    <!-- Тэмдэглэл -->
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Тэмдэглэл</label>
+      <input id="ea-note" type="text" placeholder="Жишээ нь: Туршилт" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+    </div>
+
+    <div style="background:var(--blue-l);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12.5px;color:var(--blue)">
+      ℹ️ Тоо хэмжээг энд засахгүй — үлдэгдэл өөрчлөх бол Орлого/Зарлага гүйлгээгээр хийнэ үү.
+    </div>
+
+    <button id="eaSubmitBtn" class="act-btn" style="background:var(--blue);color:#fff" onclick="saveEditAsset()">✅ Хадгалах</button>
+  </div>
+</div>
+
 <div id="incomeModal" style="position:fixed;inset:0;z-index:300;display:none;flex-direction:column;justify-content:flex-end">
   <div onclick="closeIncome()" style="position:absolute;inset:0;background:rgba(0,0,0,.5)"></div>
   <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-height:94vh;overflow-y:auto;position:relative;z-index:1;padding:20px 16px calc(24px + env(safe-area-inset-bottom))">
@@ -946,6 +995,9 @@ function showDetail(id){
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg> Зарлага
         </button>
       </div>
+      <button class="act-btn" style="background:var(--blue-l);color:var(--blue);margin-top:10px" onclick="openEditAsset('${a.id}')">
+        ✏️ Засах (зураг оруулах/шинэчлэх)
+      </button>
       <button class="act-btn check" onclick="openTx('${a.id}','check')">
         ✅ QR шалгалт бүртгэх
       </button>
@@ -964,6 +1016,86 @@ function showDetail(id){
 function closeDetail(){
   currentDetailId=null;
   document.getElementById('detailPage').classList.remove('open');
+}
+
+// ── ХӨРӨНГӨ ЗАСАХ (нэр/ангилал/тэмдэглэл/зураг) ──
+// Эд хариуцагчаас зураг хожуу ирэх тохиолдол их байдаг тул орлого авсны дараа ч
+// нярав энд ороод зургийг нэмж/сольж болно. Тоо хэмжээг энд оролдохгүй —
+// үлдэгдэл зөвхөн Орлого/Зарлага гүйлгээгээр өөрчлөгдөнө.
+let eaImg=null, eaImgPromise=null;
+function openEditAsset(id){
+  const a=get(KEYS.A).find(x=>x.id===id);
+  if(!a)return;
+  document.getElementById('ea-id').value=id;
+  document.getElementById('ea-name').value=a.name||'';
+  document.getElementById('ea-category').value=a.category||'';
+  document.getElementById('ea-accountNo').value=a.accountNo||'';
+  document.getElementById('ea-note').value=a.note||'';
+  eaImg=null; eaImgPromise=null;
+  document.getElementById('ea-imgInput').value='';
+  const box=document.getElementById('ea-imgPreview');
+  const existingUrl=getImgUrl(a.qr,a.id);
+  if(existingUrl){
+    box.innerHTML=`<img src="${existingUrl}" style="width:100%;height:100%;object-fit:cover">`;
+  }else{
+    box.innerHTML=`<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--hint)" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span style="font-size:13px;color:var(--hint);margin-top:8px">Камераар авах / Галерейгаас сонгох</span>`;
+  }
+  document.getElementById('editAssetModal').style.display='flex';
+}
+function closeEditAsset(){
+  document.getElementById('editAssetModal').style.display='none';
+}
+function setEaSubmitBusy(busy,label){
+  const btn=document.getElementById('eaSubmitBtn');
+  if(!btn)return;
+  btn.disabled=busy;
+  btn.textContent=busy?(label||'⏳ Хүлээнэ үү...'):'✅ Хадгалах';
+}
+function previewEaImg(input){
+  if(!input.files||!input.files[0])return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    document.getElementById('ea-imgPreview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;opacity:.5">`;
+  };
+  reader.readAsDataURL(input.files[0]);
+  setEaSubmitBusy(true,'⏳ Зураг боловсруулж байна...');
+  eaImgPromise=compressImageFile(input.files[0]).then(compressed=>{
+    eaImg=compressed;
+    document.getElementById('ea-imgPreview').innerHTML=`<img src="${eaImg}" style="width:100%;height:100%;object-fit:cover">`;
+  }).catch(err=>{
+    console.log('Зураг шахахад алдаа:',err);
+    showToast('⚠️ Зураг боловсруулахад алдаа гарлаа, дахин оролдоно уу');
+  }).finally(()=>{
+    eaImgPromise=null;
+    setEaSubmitBusy(false);
+  });
+}
+async function saveEditAsset(){
+  if(eaImgPromise){
+    setEaSubmitBusy(true,'⏳ Зураг боловсруулж байна...');
+    await eaImgPromise;
+  }
+  const id=document.getElementById('ea-id').value;
+  const name=document.getElementById('ea-name').value.trim();
+  if(!name){showToast('Нэрээ оруулна уу');return;}
+  const assets=get(KEYS.A);
+  const ai=assets.findIndex(x=>x.id===id);
+  if(ai<0){showToast('Хөрөнгө олдсонгүй');return;}
+  assets[ai].name=name;
+  assets[ai].category=document.getElementById('ea-category').value.trim();
+  assets[ai].accountNo=document.getElementById('ea-accountNo').value.trim();
+  assets[ai].note=document.getElementById('ea-note').value.trim();
+  save(KEYS.A,assets);
+  if(typeof pushSingleRecordToCloud==='function')pushSingleRecordToCloud('assets',assets[ai]);
+  if(eaImg){
+    setEaSubmitBusy(true,'☁️ Зураг Cloud руу илгээж байна...');
+    await saveAssetImage(id,eaImg);
+    setEaSubmitBusy(false);
+  }
+  closeEditAsset();
+  showToast('✅ Хөрөнгийн мэдээлэл шинэчлэгдлээ');
+  showDetail(id);
+  if(curTab==='assets')renderAssets();
 }
 
 // ── SCAN ──
